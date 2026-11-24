@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Pixela.Application.Abstractions;
+using Pixela.Application.Chat;
 using Pixela.Infrastructure.Persistence;
 using Testcontainers.PostgreSql;
 
@@ -27,7 +30,26 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         await _postgres.DisposeAsync();
     }
 
-    protected override void ConfigureWebHost(IWebHostBuilder builder) => builder.UseEnvironment("Testing");
+    /// <summary>Claude simulado: registra lo que recibe y responde con el primer fragmento del contexto (nunca sale a la red).</summary>
+    public FakeAiGateway Ai { get; } = new();
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.UseEnvironment("Testing");
+        builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IAiGateway>();
+            services.AddSingleton<IAiGateway>(Ai);
+        });
+    }
+
+    /// <summary>Un servicio con el alcance indicado (sin cliente = vista de agencia).</summary>
+    public (AsyncServiceScope Scope, T Service) Service<T>(Guid? clientId = null)
+        where T : notnull
+    {
+        var (scope, _) = Database(clientId);
+        return (scope, scope.ServiceProvider.GetRequiredService<T>());
+    }
 
     /// <summary>Un DbContext con el alcance indicado: sin cliente = vista de agencia (todos); <paramref name="unset"/> = sin alcance.</summary>
     public (AsyncServiceScope Scope, AppDbContext Db) Database(Guid? clientId = null, bool unset = false)
@@ -47,6 +69,24 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         }
 
         return (scope, scope.ServiceProvider.GetRequiredService<AppDbContext>());
+    }
+}
+
+public sealed class FakeAiGateway : IAiGateway
+{
+    public List<AiRequest> Requests { get; } = [];
+
+    public bool RequiresKey => true;
+
+    public Task<AiReply> CompleteAsync(AiRequest request, CancellationToken ct)
+    {
+        lock (Requests)
+        {
+            Requests.Add(request);
+        }
+
+        var text = request.Context.Count > 0 ? "Según el negocio: " + request.Context[0].Text : "Te ayudo.";
+        return Task.FromResult(new AiReply(text, 1000, 100, request.Model ?? "?"));
     }
 }
 

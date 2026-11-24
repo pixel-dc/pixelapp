@@ -13,7 +13,7 @@ Fecha: 2026-11-24.
 | 4 | Llave de Claude | **Una por bot**, obligatoria para responder con modelo. Así Pixel DC audita el consumo en la consola de Anthropic (por llave) y dentro de Pixela (tokens y costo por bot). Sin respaldo global. |
 | 5 | Topes y cobro | Se conservan precio por conversación y topes por cliente, pero **por defecto ilimitados**. Se documenta cómo configurarlos. |
 | 6 | Marca | Pixel DC (ver §6). |
-| 7 | Datos | Se migran los bots de **Don Porko** y **Pixel DC** desde FacilCorreo; el resto arranca en blanco. |
+| 7 | Datos | Se migra **todo** lo de **Don Porko** y **Pixel DC** desde FacilCorreo (bots, conocimiento, canales, conexiones, conversaciones, mensajes, adjuntos, contactos y consumo); el resto arranca en blanco. |
 | 8 | Infraestructura | Droplet propio de DigitalOcean con **Ubuntu 26.04**, PostgreSQL en el host, **sin Docker** (servicios systemd + Caddy), despliegue desde Git. **.NET 10 LTS**. |
 
 ## 2. Modelo de datos
@@ -78,7 +78,7 @@ Todo lo demás vive en la base y se edita desde el panel:
 |---|---|---|
 | 0 ✅ | Repo, solución `Pixela.*` en .NET 10, CI (build, format, pruebas), `.editorconfig`, `.gitignore`, README | `dotnet build` y CI en verde con proyectos vacíos |
 | 1 ✅ | Dominio y persistencia: entidades de §2, `AppDbContext`, filtro por cliente, migración `InitialCreate` | Pruebas de dominio y una migración limpia |
-| 2 | Servicios del chat copiados y adaptados; secretos por bot; SSRF compartido | Pruebas de chat/conocimiento/MCP en verde |
+| 2 ✅ | Servicios del chat copiados y adaptados; secretos por bot; SSRF compartido | Pruebas de chat/conocimiento/MCP en verde |
 | 3 | Meta por bot: webhook `/{botKey}`, firma con la app del bot, token auto | Pruebas de canales en verde; verificación de Meta con un bot real |
 | 4 | Auth y roles: agencia, ClientAdmin (gestiona admins y operadores), Operador; salto a cliente; primer arranque | Pruebas de permisos en verde |
 | 5 | Panel con marca Pixel DC: clientes, assets, bots, pestaña Integraciones (Claude, Meta, MCP, Supabase), bandeja, uso | `npm run build/lint/test` en verde; revisión visual |
@@ -100,7 +100,7 @@ Todo lo demás vive en la base y se edita desde el panel:
 
 Script de una sola vez (`tools/Pixela.Migrator`) que lee la base de FacilCorreo y escribe en la de Pixela:
 1. Crea Cliente y Asset para cada uno.
-2. Copia el bot (perfil, ícono, color, sitios permitidos), fuentes de conocimiento (y reindexa), conexiones MCP y canales.
+2. Copia todo: bot (perfil, ícono, color, sitios permitidos, respuestas rápidas), fuentes y fragmentos de conocimiento, conexiones MCP, canales, conversaciones, mensajes, adjuntos (archivos del disco incluidos), contactos (leads) y consumo mensual (repartido por bot).
 3. **Secretos**: los descifra con la llave maestra de FacilCorreo y los vuelve a cifrar con la de Pixela; nunca quedan en texto plano en disco.
 4. La llave de Claude, que en FacilCorreo es por cuenta/agencia, se asigna a cada bot (o se crea una llave nueva por bot en la consola de Anthropic, recomendado para separar el consumo).
 5. Para los canales de Meta hay que cambiar la URL del webhook y el token de verificación en la app de Meta de cada bot al hacer el cambio.
@@ -114,10 +114,19 @@ Script de una sola vez (`tools/Pixela.Migrator`) que lee la base de FacilCorreo 
 - **Topes y precio** viven en `clients` (`PricePerConversation`, `MonthlyConversationCap`, `MessagesPerConversationCap`); null = ilimitado.
 - **Configuración de la agencia** en `agency_settings` (una fila, la crea el arranque).
 
-## 9. Pendientes
+## 9. Decisiones de la Fase 2 (motor del chat)
+
+- **Llave de Claude solo por bot** (`BotKeyService`): sin respaldo de agencia ni de servidor. Sin llave, el bot responde en modo extractivo (sin modelo, sin costo) y el gateway de Claude se niega a llamar.
+- **Modelo, esfuerzo y precios** salen de `agency_settings` (el modelo del bot manda); `AiOptions` solo guarda ajustes técnicos (URL, tiempos, reintentos, rondas de herramientas).
+- **Topes:** el tope mensual del cliente suma las conversaciones de todos sus bots; sin tope, ilimitado. Sin tope de mensajes por conversación rige un techo de seguridad de 1.000 (corta bucles entre bots).
+- **Firma de las sesiones del chat** con una llave derivada de la maestra (HKDF, propósito `chat-session`): ya no hace falta `ApiKeys:Pepper`.
+- **Webhook de Meta por bot:** `MetaInboxService.ResolveBotAppAsync(clave pública)` da la app del bot (clave secreta y token de verificación) y `AcceptAsync` solo acepta mensajes de canales de ese bot. El token de verificación se genera al crear el bot (`pxv_…`). Los endpoints `/meta/webhook/{clave}` llegan en la Fase 3.
+- **SSRF** en `Application/Http/OutboundHttp.cs` (validador) e `Infrastructure/Http/SafeConnect.cs` (conexión), compartido por páginas web, Supabase y MCP.
+- Lo que se crea desde la vista de agencia (fuentes, conexiones) hereda el cliente del bot; la búsqueda por SQL respeta la vista de agencia.
+
+## 10. Pendientes
 
 - Dominio del panel de Pixela (¿`chat.pixeldc.com`, `bots.pixeldc.com`…?) y acceso a su DNS.
-- ¿Se migran también conversaciones y contactos de Don Porko y Pixel DC, o solo configuración y conocimiento?
-- Logo en SVG y versión blanca.
+- Logo de Pixela (robot «DC» + «PIXEL@», recibido en el chat): guardarlo en el repo (`web/public/pixela-logo.png`) para el panel y el ícono; idealmente también en SVG y en versión para fondo oscuro.
 - Dónde vive el repositorio (GitHub de Pixel DC u otro) para el despliegue desde Git.
 - Acceso de solo lectura a la base de producción de FacilCorreo para la migración.

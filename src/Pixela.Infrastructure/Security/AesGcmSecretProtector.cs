@@ -27,6 +27,9 @@ public sealed class AesGcmSecretProtector : ISecretProtector
         _key = ParseKey(options.Value.MasterKey);
     }
 
+    public byte[] DeriveKey(string purpose) =>
+        HKDF.DeriveKey(HashAlgorithmName.SHA256, _key, 32, salt: [], info: Encoding.UTF8.GetBytes("pixela|" + purpose));
+
     public static bool IsValidKey(string? base64) => TryParseKey(base64, out _);
 
     public string Protect(string plaintext)
