@@ -81,7 +81,7 @@ Todo lo demás vive en la base y se edita desde el panel:
 | 2 ✅ | Servicios del chat copiados y adaptados; secretos por bot; SSRF compartido | Pruebas de chat/conocimiento/MCP en verde |
 | 3 ✅ | Meta por bot: webhook `/{botKey}`, firma con la app del bot, token auto | Pruebas de canales en verde; verificación de Meta con un bot real |
 | 4 ✅ | Auth y roles: agencia, ClientAdmin (gestiona admins y operadores), Operador; salto a cliente; primer arranque | Pruebas de permisos en verde |
-| 5 | Panel con marca Pixel DC: clientes, assets, bots, pestaña Integraciones (Claude, Meta, MCP, Supabase), bandeja, uso | `npm run build/lint/test` en verde; revisión visual |
+| 5 ✅ | Panel con marca Pixel DC: clientes, assets, bots, pestaña Integraciones (Claude, Meta, MCP, Supabase), bandeja, uso | `npm run build/lint/test` en verde; revisión visual |
 | 6 | Migración de datos: Don Porko y Pixel DC (ver §7) | Ambos bots responden en Pixela con su conocimiento |
 | 7 | Despliegue: droplet Ubuntu 26.04, PostgreSQL, Caddy, systemd, script de despliegue desde Git, respaldos | Panel, widget y webhook de Meta funcionando en el dominio de Pixel DC |
 | 8 | Documentación y entrega: README, guía de Meta por bot, manual de topes y cobro, manual de despliegue | Pixel DC despliega un cambio por su cuenta |
@@ -143,9 +143,18 @@ Script de una sola vez (`tools/Pixela.Migrator`) que lee la base de FacilCorreo 
 - **Mover un bot** a otro asset (de otro cliente incluso) lleva consigo secretos, conocimiento, canales, conversaciones, mensajes, adjuntos y contactos; el consumo de meses anteriores se queda donde ocurrió.
 - Se quitaron de FacilCorreo: subdominios por cliente, pase de acceso entre subdominios, pertenencias múltiples y consola de superadmin.
 
-## 12. Pendientes
+## 12. Decisiones de la Fase 5 (panel web)
+
+- Pantallas traídas de FacilCorreo (bandeja, conocimiento, canales, conexiones, respuestas rápidas, consumo, equipo, cuenta, apariencia) y nuevas: primer arranque (`/configurar`), resumen, clientes y ficha del cliente (assets con sus chatbots, datos, marca del widget, precio y topes), configuración de la agencia, equipo de la agencia y pestaña **Integraciones** del bot (llave de Claude con prueba; app de Meta con URL del webhook, token de verificación y clave secreta).
+- Menú por rol: el operador solo ve la bandeja y su cuenta; el administrador del cliente, chatbots, bandeja y su equipo; la agencia, todo, con el selector «Estás viendo» (cabecera `X-Client-Id` en las rutas de datos, nunca en sesión, cuenta ni configuración de la agencia).
+- Marca: acento por defecto cian `#3AD3F8`, Poppins, colores de Pixel DC en el selector de color. El logo se toma de `web/public/pixela-logo.png` si existe; si no, el distintivo «DC».
+- Textos legales: falta la razón social y el correo de contacto de Pixel DC (marcados como pendientes en `web/src/pages/legal.tsx`).
+- Revisado en navegador contra API y PostgreSQL reales: primer arranque, entrada, crear cliente con asset, crear bot, Integraciones; escritorio y teléfono, tema oscuro y claro.
+
+## 13. Pendientes
 
 - Dominio del panel de Pixela (¿`chat.pixeldc.com`, `bots.pixeldc.com`…?) y acceso a su DNS.
-- Logo de Pixela (robot «DC» + «PIXEL@», recibido en el chat): guardarlo en el repo (`web/public/pixela-logo.png`) para el panel y el ícono; idealmente también en SVG y en versión para fondo oscuro.
+- Logo de Pixela (robot «DC» + «PIXEL@», recibido en el chat): guardarlo como `web/public/pixela-logo.png` (el panel ya lo usa si existe); idealmente también en SVG.
+- Datos legales de Pixel DC para las páginas de privacidad y términos: razón social y correo de contacto.
 - Dónde vive el repositorio (GitHub de Pixel DC u otro) para el despliegue desde Git.
 - Acceso de solo lectura a la base de producción de FacilCorreo para la migración.

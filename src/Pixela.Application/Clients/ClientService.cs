@@ -65,7 +65,18 @@ public sealed partial class ClientService(IAppDbContext db, TimeProvider clock)
     public async Task<ServiceResult<ClientView>> GetAsync(Guid id, CancellationToken ct)
     {
         var client = await db.Clients.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, ct);
-        return client is null ? NotFound<ClientView>() : ServiceResult<ClientView>.Ok(ToView(client));
+        if (client is null)
+        {
+            return NotFound<ClientView>();
+        }
+
+        var period = UsagePeriod.Of(clock.GetUtcNow());
+        return ServiceResult<ClientView>.Ok(ToView(client) with
+        {
+            Assets = await db.Assets.CountAsync(a => a.ClientId == id, ct),
+            Bots = await db.Bots.CountAsync(b => b.ClientId == id, ct),
+            ConversationsThisMonth = await db.ChatUsages.Where(u => u.ClientId == id && u.Period == period).SumAsync(u => (int?)u.Conversations, ct) ?? 0,
+        });
     }
 
     public async Task<ServiceResult<ClientView>> CreateAsync(ClientRequest request, CancellationToken ct)
