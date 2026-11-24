@@ -1,0 +1,30 @@
+bin/
+obj/
+.vs/
+*.user
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+*.log
+TestResults/
+coverage/
+
+# Secretos y datos de acceso: nunca al repositorio
+*.local.md
+*.pem
+*.key
+*.pfx
+*.p12
+id_rsa*
+id_ed25519*
+deploy_*
+!deploy/
+*.tgz
+.claude/
+
+# Volcados de migración de datos
+*.dump
+*.sql.gz
+migration-data/

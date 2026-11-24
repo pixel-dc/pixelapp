@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Pixela.Api/Pixela.Api.csproj" />
+    <Project Path="src/Pixela.Application/Pixela.Application.csproj" />
+    <Project Path="src/Pixela.Domain/Pixela.Domain.csproj" />
+    <Project Path="src/Pixela.Infrastructure/Pixela.Infrastructure.csproj" />
+    <Project Path="src/Pixela.Workers/Pixela.Workers.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Pixela.Api.Tests/Pixela.Api.Tests.csproj" />
+    <Project Path="tests/Pixela.Domain.Tests/Pixela.Domain.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,193 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource/poppins/400.css";
+@import "@fontsource/poppins/500.css";
+@import "@fontsource/poppins/600.css";
+@import "@fontsource/poppins/700.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: var(--font-sans);
+    --font-sans: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* Marca Pixel DC (pixeldc.com): base casi negra / azul noche, acento cian #3AD3F8, secundario lavanda #CEBFFF, Poppins. */
+:root {
+    --brand-lavender: #cebfff;
+    --background: oklch(1 0 0);
+    --foreground: #111111;
+    --card: oklch(1 0 0);
+    --card-foreground: #111111;
+    --popover: oklch(1 0 0);
+    --popover-foreground: #111111;
+    --primary: #3ad3f8;
+    --primary-foreground: #111111;
+    --secondary: #f7f7f7;
+    --secondary-foreground: oklch(0.205 0 0);
+    --muted: #f7f7f7;
+    --muted-foreground: #555555;
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: #eaecf0;
+    --input: #eaecf0;
+    --ring: #3ad3f8;
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --radius: 0.625rem;
+    --sidebar: #1e1e2f;
+    --sidebar-foreground: #f7f7f7;
+    --sidebar-primary: #3ad3f8;
+    --sidebar-primary-foreground: #111111;
+    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-accent-foreground: oklch(0.205 0 0);
+    --sidebar-border: oklch(1 0 0 / 8%);
+    --sidebar-ring: #3ad3f8;
+}
+
+.dark {
+    --background: #111118;
+    --foreground: oklch(0.985 0 0);
+    --card: #1e1e2f;
+    --card-foreground: oklch(0.985 0 0);
+    --popover: #1e1e2f;
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: #3ad3f8;
+    --primary-foreground: #111111;
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: #3ad3f8;
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --sidebar: #16161f;
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: #3ad3f8;
+    --sidebar-primary-foreground: #111111;
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: #3ad3f8;
+}
+
+/* El acento del usuario tiñe los estados de pasar el cursor y de selección: el panel deja de verse gris sin perder contraste. */
+:root,
+.dark {
+    --accent: color-mix(in oklab, var(--primary) 9%, var(--background));
+    --accent-foreground: var(--foreground);
+    --sidebar-accent: color-mix(in oklab, var(--primary) 12%, var(--sidebar));
+    --sidebar-accent-foreground: var(--sidebar-foreground);
+    --chart-1: var(--primary);
+    --chart-2: color-mix(in oklab, var(--primary) 70%, white);
+    --chart-3: color-mix(in oklab, var(--primary) 45%, white);
+    --chart-4: color-mix(in oklab, var(--primary) 70%, black);
+    --chart-5: color-mix(in oklab, var(--primary) 45%, black);
+}
+
+/* Fondos elegibles (los pone appearance.ts en <html data-bg>). El contenido principal se vuelve transparente para dejarlos ver; las tarjetas siguen sólidas. */
+html[data-bg='soft'] body {
+    background: linear-gradient(180deg, color-mix(in oklab, var(--primary) 7%, var(--background)), var(--background) 45%) fixed;
+}
+html[data-bg='gradient'] body {
+    background:
+        radial-gradient(1100px 560px at 100% -8%, color-mix(in oklab, var(--primary) 24%, transparent), transparent 62%),
+        radial-gradient(900px 500px at -8% 108%, color-mix(in oklab, var(--primary) 16%, transparent), transparent 58%),
+        var(--background);
+    background-attachment: fixed;
+}
+html[data-bg='dots'] body {
+    background-color: var(--background);
+    background-image: radial-gradient(color-mix(in oklab, var(--primary) 22%, transparent) 1px, transparent 1px);
+    background-size: 18px 18px;
+}
+html[data-bg='soft'] [data-slot='sidebar-inset'],
+html[data-bg='gradient'] [data-slot='sidebar-inset'],
+html[data-bg='dots'] [data-slot='sidebar-inset'] {
+    background: transparent;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    [data-slot='card'] {
+        transition: box-shadow 150ms ease, transform 150ms ease;
+    }
+}
+
+/* Controles nativos (listas desplegables, selectores de fecha, barras de desplazamiento) con el tema de la página: sin esto, en oscuro
+   la lista de un <select> sale con fondo blanco y texto claro. */
+:root {
+    color-scheme: light;
+}
+
+.dark {
+    color-scheme: dark;
+}
+
+option,
+optgroup {
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground;
+    }
+  html {
+    @apply font-sans;
+    }
+}

@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Pixela.Application\Pixela.Application.csproj" />
+    <ProjectReference Include="..\Pixela.Infrastructure\Pixela.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
