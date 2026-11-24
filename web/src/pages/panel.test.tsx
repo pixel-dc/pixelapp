@@ -49,7 +49,7 @@ describe('primer arranque', () => {
     })
     renderApp('/login')
 
-    expect(await screen.findByText('Bienvenido a Pixela')).toBeInTheDocument()
+    expect(await screen.findByText('Bienvenido a Pixelapp')).toBeInTheDocument()
     await userEvent.type(screen.getByLabelText('Correo'), 'dueno@pixeldc.test')
     await userEvent.type(screen.getByLabelText('Contraseña'), 'una frase larga de prueba')
     await userEvent.type(screen.getByLabelText('Repite la contraseña'), 'una frase larga de prueba')

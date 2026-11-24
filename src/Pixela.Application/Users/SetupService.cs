@@ -33,7 +33,7 @@ public sealed class SetupService(IAppDbContext db, IPasswordHasher hasher, TimeP
         await db.AcquireSetupLockAsync(ct);
         if (await db.Users.IgnoreQueryFilters().AnyAsync(ct))
         {
-            return ServiceResult<Guid>.Fail("forbidden", "Pixela ya está configurado. Entra con tu usuario.");
+            return ServiceResult<Guid>.Fail("forbidden", "Pixelapp ya está configurado. Entra con tu usuario.");
         }
 
         var now = clock.GetUtcNow();

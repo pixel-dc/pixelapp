@@ -45,11 +45,11 @@ export default function SetupPage() {
     <main className="grid min-h-screen place-items-center bg-[#111118] p-4">
       <div className="w-full max-w-md space-y-6">
         <div className="flex items-center justify-center gap-3 text-xl font-semibold text-white">
-          <BrandMark className="size-12" /> Pixela
+          <BrandMark className="size-12" /> Pixelapp
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>Bienvenido a Pixela</CardTitle>
+            <CardTitle>Bienvenido a Pixelapp</CardTitle>
             <CardDescription>Crea la cuenta del dueño de la agencia. Desde ella invitarás al resto del equipo y a tus clientes.</CardDescription>
           </CardHeader>
           <CardContent>

@@ -69,7 +69,7 @@ function AttentionBadge() {
   )
 }
 
-/** Logo de Pixela: la imagen de /pixela-logo.png si existe; si no, el distintivo «DC» con los colores de Pixel DC. */
+/** Logo de Pixelapp: la imagen de /pixela-logo.png si existe; si no, el distintivo «DC» con los colores de Pixel DC. */
 export function BrandMark({ className = 'size-9' }: { className?: string }) {
   const [failed, setFailed] = useState(false)
   if (!failed) {
@@ -131,7 +131,7 @@ export function AppShell() {
           <div className="flex items-center gap-2.5 px-2 py-1.5">
             <BrandMark />
             <span className="min-w-0 leading-tight">
-              <span className="block truncate font-semibold tracking-tight">Pixela</span>
+              <span className="block truncate font-semibold tracking-tight">Pixelapp</span>
               <span className="block truncate text-xs text-sidebar-foreground/70">{user.client_name ?? 'Pixel DC'}</span>
             </span>
           </div>
@@ -198,7 +198,7 @@ export function AppShell() {
         {isAgency && <ClientScopeBanner />}
         <header className="flex h-12 items-center gap-2 border-b px-4 md:hidden">
           <SidebarTrigger />
-          <span className="truncate font-semibold tracking-tight">Pixela</span>
+          <span className="truncate font-semibold tracking-tight">Pixelapp</span>
           <button type="button" onClick={() => navigate('/apariencia')} className="ml-auto rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Perfil y apariencia">
             <UserAvatar user={user} size="sm" />
           </button>

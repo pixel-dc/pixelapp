@@ -136,7 +136,7 @@ public sealed class SafeWebPageFetcher : IWebPageFetcher, IDisposable
             ConnectCallback = (context, ct) => SafeConnect.ConnectAsync(context, allowPrivate, ct),
         };
         _client = new HttpClient(handler, disposeHandler: true) { Timeout = TimeSpan.FromSeconds(20) };
-        _client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("PixelaBot", "1.0"));
+        _client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("PixelappBot", "1.0"));
     }
 
     public async Task<WebPage> FetchAsync(Uri url, CancellationToken ct)

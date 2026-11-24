@@ -33,7 +33,7 @@ export default function LoginPage() {
     <main className="grid min-h-screen place-items-center p-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="flex items-center justify-center gap-3 text-xl font-semibold">
-          <BrandMark className="size-12" /> Pixela
+          <BrandMark className="size-12" /> Pixelapp
         </div>
         <Card>
           {challenge ? (

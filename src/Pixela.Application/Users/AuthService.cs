@@ -22,7 +22,7 @@ public sealed class PanelOptions
     public int MaxFailedLogins { get; set; } = 5;
     public int LockoutMinutes { get; set; } = 15;
     public int LoginRateLimitPerMinute { get; set; } = 10;
-    public string TotpIssuer { get; set; } = "Pixela";
+    public string TotpIssuer { get; set; } = "Pixelapp";
 }
 
 public interface IPasswordHasher

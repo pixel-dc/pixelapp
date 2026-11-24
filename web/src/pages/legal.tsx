@@ -7,7 +7,7 @@ import { Link } from 'react-router'
  */
 const LEGAL = {
   // Pendiente de confirmar con Pixel DC: razón social y correo de contacto para privacidad.
-  product: 'Pixela',
+  product: 'Pixelapp',
   company: 'Pixel DC [razón social pendiente]',
   email: '[correo de contacto pendiente]',
   place: 'Colombia',

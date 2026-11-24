@@ -21,7 +21,7 @@ export default function DashboardPage() {
     <>
       <PageHeader
         title={`Hola${user?.display_name ? `, ${user.display_name.split(' ')[0]}` : ''}`}
-        description={isAgency ? 'Así va Pixela este mes.' : `Así van los chatbots de ${user?.client_name ?? 'tu negocio'} este mes.`}
+        description={isAgency ? 'Así va Pixelapp este mes.' : `Así van los chatbots de ${user?.client_name ?? 'tu negocio'} este mes.`}
       />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {isAgency && (

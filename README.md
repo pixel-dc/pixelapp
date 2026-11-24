@@ -1,4 +1,4 @@
-# Pixel@
+# Pixelapp
 
 Plataforma de chatbots con IA de **Pixel DC**: la agencia crea clientes, cada cliente tiene assets y cada asset sus chatbots.
 Los bots responden en la web (widget) y por WhatsApp, Messenger e Instagram, con su propia llave de Claude y su propia app de Meta.
