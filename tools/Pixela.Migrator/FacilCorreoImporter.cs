@@ -625,6 +625,9 @@ internal static class Reading
         return row;
     }
 
+    // Columnas que el FacilCorreo desplegado aún no tiene (esquema más antiguo) se leen como nulas.
+    private static object? Get(Dictionary<string, object?> row, string c) => row.TryGetValue(c, out var v) ? v : null;
+
     public static string? Str(this DbDataReader r, int i) => r.IsDBNull(i) ? null : r.GetString(i);
 
     public static Guid Guid(this DbDataReader r, int i) => r.GetGuid(i);
@@ -637,21 +640,21 @@ internal static class Reading
 
     public static DateTimeOffset? Time(this DbDataReader r, int i) => r.IsDBNull(i) ? null : r.GetFieldValue<DateTimeOffset>(i);
 
-    public static string? Str(this Dictionary<string, object?> row, string c) => row[c] as string;
+    public static string? Str(this Dictionary<string, object?> row, string c) => Get(row, c) as string;
 
-    public static Guid Guid(this Dictionary<string, object?> row, string c) => (Guid)row[c]!;
+    public static Guid Guid(this Dictionary<string, object?> row, string c) => (Guid)Get(row, c)!;
 
-    public static Guid? NGuid(this Dictionary<string, object?> row, string c) => row[c] as Guid?;
+    public static Guid? NGuid(this Dictionary<string, object?> row, string c) => Get(row, c) as Guid?;
 
-    public static int? Int(this Dictionary<string, object?> row, string c) => row[c] is null ? null : Convert.ToInt32(row[c], System.Globalization.CultureInfo.InvariantCulture);
+    public static int? Int(this Dictionary<string, object?> row, string c) => Get(row, c) is null ? null : Convert.ToInt32(Get(row, c), System.Globalization.CultureInfo.InvariantCulture);
 
-    public static long? Long(this Dictionary<string, object?> row, string c) => row[c] is null ? null : Convert.ToInt64(row[c], System.Globalization.CultureInfo.InvariantCulture);
+    public static long? Long(this Dictionary<string, object?> row, string c) => Get(row, c) is null ? null : Convert.ToInt64(Get(row, c), System.Globalization.CultureInfo.InvariantCulture);
 
-    public static double? Dbl(this Dictionary<string, object?> row, string c) => row[c] as double?;
+    public static double? Dbl(this Dictionary<string, object?> row, string c) => Get(row, c) as double?;
 
-    public static bool Bool(this Dictionary<string, object?> row, string c) => row[c] is true;
+    public static bool Bool(this Dictionary<string, object?> row, string c) => Get(row, c) is true;
 
-    public static DateTimeOffset? Time(this Dictionary<string, object?> row, string c) => row[c] switch
+    public static DateTimeOffset? Time(this Dictionary<string, object?> row, string c) => Get(row, c) switch
     {
         null => null,
         DateTimeOffset d => d,
@@ -659,5 +662,5 @@ internal static class Reading
         var other => throw new InvalidCastException($"{c}: {other.GetType()}"),
     };
 
-    public static List<string> Strings(this Dictionary<string, object?> row, string c) => row[c] is string[] a ? [.. a] : [];
+    public static List<string> Strings(this Dictionary<string, object?> row, string c) => Get(row, c) is string[] a ? [.. a] : [];
 }

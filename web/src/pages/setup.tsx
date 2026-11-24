@@ -44,8 +44,9 @@ export default function SetupPage() {
   return (
     <main className="grid min-h-screen place-items-center bg-[#111118] p-4">
       <div className="w-full max-w-md space-y-6">
-        <div className="flex items-center justify-center gap-3 text-xl font-semibold text-white">
-          <BrandMark className="size-12" /> Pixelapp
+        <div className="flex flex-col items-center gap-1 text-xl font-semibold text-white">
+          <BrandMark full className="size-56" />
+          <span className="sr-only">Pixelapp</span>
         </div>
         <Card>
           <CardHeader>

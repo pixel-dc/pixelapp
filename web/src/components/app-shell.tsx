@@ -69,11 +69,14 @@ function AttentionBadge() {
   )
 }
 
-/** Logo de Pixelapp: la imagen de /pixela-logo.png si existe; si no, el distintivo «DC» con los colores de Pixel DC. */
-export function BrandMark({ className = 'size-9' }: { className?: string }) {
+/**
+ * Logo de Pixelapp (el robot de Pixel DC). `full` = el logo completo con «PIXEL@» (entrada y primer arranque); si no, solo la cabeza
+ * del robot, que se distingue a tamaño de ícono (menú). Si la imagen no carga, el distintivo «DC» con los colores de Pixel DC.
+ */
+export function BrandMark({ className = 'size-9', full = false }: { className?: string; full?: boolean }) {
   const [failed, setFailed] = useState(false)
   if (!failed) {
-    return <img src="/pixela-logo.png" alt="" className={`${className} rounded-lg object-contain`} onError={() => setFailed(true)} />
+    return <img src={full ? '/pixela-logo.png' : '/pixela-icon.png'} alt={full ? 'Pixelapp' : ''} className={`${className} object-contain`} onError={() => setFailed(true)} />
   }
   return (
     <span className={`${className} grid place-items-center rounded-lg bg-[#1e1e2f] text-sm font-bold text-primary ring-1 ring-primary/60`} aria-hidden>
