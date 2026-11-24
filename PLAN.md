@@ -76,8 +76,8 @@ Todo lo demás vive en la base y se edita desde el panel:
 
 | Fase | Contenido | Hecho cuando |
 |---|---|---|
-| 0 | Repo, solución `Pixela.*` en .NET 10, CI (build, format, pruebas), `.editorconfig`, `.gitignore`, README | `dotnet build` y CI en verde con proyectos vacíos |
-| 1 | Dominio y persistencia: entidades de §2, `AppDbContext`, filtro por cliente, migración `InitialCreate` | Pruebas de dominio y una migración limpia |
+| 0 ✅ | Repo, solución `Pixela.*` en .NET 10, CI (build, format, pruebas), `.editorconfig`, `.gitignore`, README | `dotnet build` y CI en verde con proyectos vacíos |
+| 1 ✅ | Dominio y persistencia: entidades de §2, `AppDbContext`, filtro por cliente, migración `InitialCreate` | Pruebas de dominio y una migración limpia |
 | 2 | Servicios del chat copiados y adaptados; secretos por bot; SSRF compartido | Pruebas de chat/conocimiento/MCP en verde |
 | 3 | Meta por bot: webhook `/{botKey}`, firma con la app del bot, token auto | Pruebas de canales en verde; verificación de Meta con un bot real |
 | 4 | Auth y roles: agencia, ClientAdmin (gestiona admins y operadores), Operador; salto a cliente; primer arranque | Pruebas de permisos en verde |
@@ -105,9 +105,17 @@ Script de una sola vez (`tools/Pixela.Migrator`) que lee la base de FacilCorreo 
 4. La llave de Claude, que en FacilCorreo es por cuenta/agencia, se asigna a cada bot (o se crea una llave nueva por bot en la consola de Anthropic, recomendado para separar el consumo).
 5. Para los canales de Meta hay que cambiar la URL del webhook y el token de verificación en la app de Meta de cada bot al hacer el cambio.
 
-## 8. Pendientes
+## 8. Decisiones de la Fase 1 (modelo de datos)
 
-- Instalar el **SDK de .NET 10** en esta máquina (hoy solo está el 9.0.302).
+- **Aislamiento por cliente:** toda tabla de datos lleva `ClientId` y un filtro global de EF Core (`IClientScope`). Un usuario de cliente solo ve su cliente; la agencia ve todo o el cliente que elija en el selector; sin alcance resuelto no se ve nada.
+- **Usuarios:** `ClientId` nulo = agencia (`AgencyOwner`, `AgencyAdmin`); con cliente = `ClientAdmin` u `Operator`. La base lo garantiza con la restricción `ck_users_role_client`. Se quitan el pase de salto entre subdominios y las pertenencias múltiples de FacilCorreo: la agencia entra a un cliente con el selector (`UserSession.ActingClientId`).
+- **Secretos del bot** en la tabla `bot_secrets` (aparte de `bots`, para que ninguna consulta los arrastre): llave de Claude, clave secreta de la app de Meta y token de verificación. El canal ya no guarda clave de app propia.
+- **Consumo por bot y mes** (`chat_usage`, llave `BotId + Period`): se conserva aunque se borre el bot, para cuadrarlo con la consola de Anthropic. El del cliente es la suma.
+- **Topes y precio** viven en `clients` (`PricePerConversation`, `MonthlyConversationCap`, `MessagesPerConversationCap`); null = ilimitado.
+- **Configuración de la agencia** en `agency_settings` (una fila, la crea el arranque).
+
+## 9. Pendientes
+
 - Dominio del panel de Pixela (¿`chat.pixeldc.com`, `bots.pixeldc.com`…?) y acceso a su DNS.
 - ¿Se migran también conversaciones y contactos de Don Porko y Pixel DC, o solo configuración y conocimiento?
 - Logo en SVG y versión blanca.
