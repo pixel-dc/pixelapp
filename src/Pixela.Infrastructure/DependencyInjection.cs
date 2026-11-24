@@ -7,6 +7,7 @@ using Pixela.Application.Agency;
 using Pixela.Application.Chat;
 using Pixela.Application.Http;
 using Pixela.Infrastructure.Chat;
+using Pixela.Infrastructure.Maintenance;
 using Pixela.Infrastructure.Persistence;
 using Pixela.Infrastructure.Security;
 
@@ -43,6 +44,7 @@ public static class DependencyInjection
 
         services.AddScoped<BotService>();
         services.AddScoped<BotKeyService>();
+        services.AddScoped<BotMetaAppService>();
         services.AddScoped<BotUsageService>();
         services.AddScoped<KnowledgeService>();
         services.AddScoped<DataConnectionService>();
@@ -66,6 +68,9 @@ public static class DependencyInjection
         services.AddSingleton<ExtractiveGateway>();
         services.AddSingleton<IAiGateway>(sp => sp.GetRequiredService<AnthropicGateway>());
         services.AddSingleton<IAiKeyTester>(sp => sp.GetRequiredService<AnthropicGateway>());
+
+        services.Configure<MaintenanceOptions>(configuration.GetSection(MaintenanceOptions.Section));
+        services.AddSingleton<MaintenanceRunner>();
 
         return services;
     }

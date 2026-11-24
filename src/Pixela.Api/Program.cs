@@ -1,3 +1,4 @@
+using Pixela.Api.Endpoints;
 using Pixela.Infrastructure;
 using Pixela.Infrastructure.Persistence;
 
@@ -14,6 +15,7 @@ if (app.Configuration.GetValue("Database:MigrateOnStartup", true))
 }
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+app.MapMeta();
 
 await app.RunAsync();
 

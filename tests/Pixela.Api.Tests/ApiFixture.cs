@@ -43,6 +43,14 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         });
     }
 
+    /// <summary>Base en vista de agencia (sin filtro), de esta API o de una variante creada con <c>WithWebHostBuilder</c>.</summary>
+    public async Task<T> WithDbAsync<T>(Func<AppDbContext, Task<T>> action, WebApplicationFactory<Program>? factory = null)
+    {
+        await using var scope = (factory ?? this).Services.CreateAsyncScope();
+        scope.ServiceProvider.GetRequiredService<ClientScope>().SetAllClients();
+        return await action(scope.ServiceProvider.GetRequiredService<AppDbContext>());
+    }
+
     /// <summary>Un servicio con el alcance indicado (sin cliente = vista de agencia).</summary>
     public (AsyncServiceScope Scope, T Service) Service<T>(Guid? clientId = null)
         where T : notnull

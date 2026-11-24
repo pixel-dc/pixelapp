@@ -79,7 +79,7 @@ Todo lo demás vive en la base y se edita desde el panel:
 | 0 ✅ | Repo, solución `Pixela.*` en .NET 10, CI (build, format, pruebas), `.editorconfig`, `.gitignore`, README | `dotnet build` y CI en verde con proyectos vacíos |
 | 1 ✅ | Dominio y persistencia: entidades de §2, `AppDbContext`, filtro por cliente, migración `InitialCreate` | Pruebas de dominio y una migración limpia |
 | 2 ✅ | Servicios del chat copiados y adaptados; secretos por bot; SSRF compartido | Pruebas de chat/conocimiento/MCP en verde |
-| 3 | Meta por bot: webhook `/{botKey}`, firma con la app del bot, token auto | Pruebas de canales en verde; verificación de Meta con un bot real |
+| 3 ✅ | Meta por bot: webhook `/{botKey}`, firma con la app del bot, token auto | Pruebas de canales en verde; verificación de Meta con un bot real |
 | 4 | Auth y roles: agencia, ClientAdmin (gestiona admins y operadores), Operador; salto a cliente; primer arranque | Pruebas de permisos en verde |
 | 5 | Panel con marca Pixel DC: clientes, assets, bots, pestaña Integraciones (Claude, Meta, MCP, Supabase), bandeja, uso | `npm run build/lint/test` en verde; revisión visual |
 | 6 | Migración de datos: Don Porko y Pixel DC (ver §7) | Ambos bots responden en Pixela con su conocimiento |
@@ -124,7 +124,15 @@ Script de una sola vez (`tools/Pixela.Migrator`) que lee la base de FacilCorreo 
 - **SSRF** en `Application/Http/OutboundHttp.cs` (validador) e `Infrastructure/Http/SafeConnect.cs` (conexión), compartido por páginas web, Supabase y MCP.
 - Lo que se crea desde la vista de agencia (fuentes, conexiones) hereda el cliente del bot; la búsqueda por SQL respeta la vista de agencia.
 
-## 10. Pendientes
+## 10. Decisiones de la Fase 3 (Meta por bot)
+
+- **Webhook por bot:** `GET/POST /meta/webhook/{clave pública del bot}`. La verificación compara con el token del bot; la firma se valida con la clave secreta de la app de ese bot. Bot sin app de Meta = todo POST rechazado (401). Un mensaje de un canal de otro bot, aunque llegue bien firmado, no entra.
+- **`BotMetaAppService`:** muestra la URL del webhook (con `agency_settings.PublicBaseUrl`) y el token para copiarlos en Meta; guarda o quita la clave secreta de la app; regenera el token si se filtró. Los endpoints del panel para esto llegan con la autenticación (Fase 4).
+- **Workers:** `MetaInboxWorker` (responde por el canal) y `MaintenanceService` (retención de conversaciones según la agencia, archivos vencidos y registro de Meta).
+- **Caddy** debe enviar `/meta/*` a la API (Fase 7).
+- Pruebas: las ~35 del webhook de FacilCorreo, adaptadas a una app por bot.
+
+## 11. Pendientes
 
 - Dominio del panel de Pixela (¿`chat.pixeldc.com`, `bots.pixeldc.com`…?) y acceso a su DNS.
 - Logo de Pixela (robot «DC» + «PIXEL@», recibido en el chat): guardarlo en el repo (`web/public/pixela-logo.png`) para el panel y el ícono; idealmente también en SVG y en versión para fondo oscuro.
