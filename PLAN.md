@@ -82,7 +82,7 @@ Todo lo demás vive en la base y se edita desde el panel:
 | 3 ✅ | Meta por bot: webhook `/{botKey}`, firma con la app del bot, token auto | Pruebas de canales en verde; verificación de Meta con un bot real |
 | 4 ✅ | Auth y roles: agencia, ClientAdmin (gestiona admins y operadores), Operador; salto a cliente; primer arranque | Pruebas de permisos en verde |
 | 5 ✅ | Panel con marca Pixel DC: clientes, assets, bots, pestaña Integraciones (Claude, Meta, MCP, Supabase), bandeja, uso | `npm run build/lint/test` en verde; revisión visual |
-| 6 | Migración de datos: Don Porko y Pixel DC (ver §7) | Ambos bots responden en Pixela con su conocimiento |
+| 6 ✅ | Migración de datos: Don Porko y Pixel DC (ver §7) | Ambos bots responden en Pixela con su conocimiento |
 | 7 | Despliegue: droplet Ubuntu 26.04, PostgreSQL, Caddy, systemd, script de despliegue desde Git, respaldos | Panel, widget y webhook de Meta funcionando en el dominio de Pixel DC |
 | 8 | Documentación y entrega: README, guía de Meta por bot, manual de topes y cobro, manual de despliegue | Pixel DC despliega un cambio por su cuenta |
 
@@ -151,10 +151,18 @@ Script de una sola vez (`tools/Pixela.Migrator`) que lee la base de FacilCorreo 
 - Textos legales: falta la razón social y el correo de contacto de Pixel DC (marcados como pendientes en `web/src/pages/legal.tsx`).
 - Revisado en navegador contra API y PostgreSQL reales: primer arranque, entrada, crear cliente con asset, crear bot, Integraciones; escritorio y teléfono, tema oscuro y claro.
 
-## 13. Pendientes
+## 13. Decisiones de la Fase 6 (migración)
+
+- Herramienta `tools/Pixela.Migrator` (guía en su `README.md`). Lee FacilCorreo en una transacción de solo lectura y escribe en Pixela en una sola transacción; `--dry-run` muestra el informe sin guardar.
+- Conserva ids y **claves públicas** de los bots (el widget instalado solo cambia de dominio). La agencia Pixel DC también queda como cliente con su bot, y sus dueños/administradores pasan al equipo de la agencia.
+- Secretos recifrados con la llave de Pixela. Cada bot recibe un token de verificación de Meta nuevo: hay que actualizar el webhook en Meta al cambiar.
+- El consumo mensual por cuenta pasa al bot (al más antiguo si había varios). Los códigos de recuperación del 2FA no se migran.
+- Probada con el esquema real de FacilCorreo (`tests/Pixela.Migrator.Tests/facilcorreo-schema.sql`, generado de sus migraciones el 2026-11-24). Si FacilCorreo cambia su esquema antes de migrar, regenerar ese archivo y volver a correr las pruebas.
+
+## 14. Pendientes
 
 - Dominio del panel de Pixela (¿`chat.pixeldc.com`, `bots.pixeldc.com`…?) y acceso a su DNS.
 - Logo de Pixela (robot «DC» + «PIXEL@», recibido en el chat): guardarlo como `web/public/pixela-logo.png` (el panel ya lo usa si existe); idealmente también en SVG.
 - Datos legales de Pixel DC para las páginas de privacidad y términos: razón social y correo de contacto.
 - Dónde vive el repositorio (GitHub de Pixel DC u otro) para el despliegue desde Git.
-- Acceso de solo lectura a la base de producción de FacilCorreo para la migración.
+- Para correr la migración real: usuario de solo lectura de la base de FacilCorreo, su llave maestra y (opcional) la carpeta de adjuntos.

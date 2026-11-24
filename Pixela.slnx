@@ -6,9 +6,13 @@
     <Project Path="src/Pixela.Infrastructure/Pixela.Infrastructure.csproj" />
     <Project Path="src/Pixela.Workers/Pixela.Workers.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Pixela.Migrator/Pixela.Migrator.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Pixela.Api.Tests/Pixela.Api.Tests.csproj" />
     <Project Path="tests/Pixela.Domain.Tests/Pixela.Domain.Tests.csproj" />
     <Project Path="tests/Pixela.Infrastructure.Tests/Pixela.Infrastructure.Tests.csproj" />
+    <Project Path="tests/Pixela.Migrator.Tests/Pixela.Migrator.Tests.csproj" />
   </Folder>
 </Solution>
