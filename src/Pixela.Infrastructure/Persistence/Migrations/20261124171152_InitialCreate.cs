@@ -473,8 +473,7 @@ namespace Pixela.Infrastructure.Persistence.Migrations
                     ExpiresAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     RevokedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     Ip = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: true),
-                    UserAgent = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: true),
-                    ActingClientId = table.Column<Guid>(type: "uuid", nullable: true)
+                    UserAgent = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: true)
                 },
                 constraints: table =>
                 {

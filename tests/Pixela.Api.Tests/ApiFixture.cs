@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -22,6 +23,38 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         // Program.cs lee la configuración al construir el host: las variables de entorno llegan a tiempo.
         Environment.SetEnvironmentVariable("ConnectionStrings__Default", _postgres.GetConnectionString());
         Environment.SetEnvironmentVariable("Secrets__MasterKey", Convert.ToBase64String(Enumerable.Range(1, 32).Select(i => (byte)i).ToArray()));
+        Environment.SetEnvironmentVariable("Panel__SecureCookies", "false"); // el servidor de pruebas habla http
+        Environment.SetEnvironmentVariable("Panel__LoginRateLimitPerMinute", "10000");
+    }
+
+    public const string Password = "una frase larga de prueba 2026";
+
+    /// <summary>Crea un usuario con <see cref="Password"/> directamente en la base (sin invitación).</summary>
+    public async Task<Guid> CreateUserAsync(string email, Pixela.Domain.Users.UserRole role, Guid? clientId)
+    {
+        var hash = Services.GetRequiredService<Pixela.Application.Users.IPasswordHasher>().Hash(Password);
+        var id = Guid.CreateVersion7();
+        await WithDbAsync(async db =>
+        {
+            db.Users.Add(new Pixela.Domain.Users.User { Id = id, Email = email, PasswordHash = hash, Role = role, ClientId = clientId, CreatedAt = DateTimeOffset.UtcNow });
+            return await db.SaveChangesAsync();
+        });
+        return id;
+    }
+
+    /// <summary>Cliente HTTP con la sesión iniciada (cookie) y la cabecera anti-CSRF; <paramref name="clientId"/> = el selector de cliente.</summary>
+    public async Task<HttpClient> LoginAsync(string email, Guid? clientId = null)
+    {
+        var http = CreateClient();
+        http.DefaultRequestHeaders.Add("X-Requested-With", "Pixela");
+        var response = await http.PostAsJsonAsync("/panel/auth/login", new { email, password = Password });
+        Assert.True(response.IsSuccessStatusCode, $"login {email}: {(int)response.StatusCode} {await response.Content.ReadAsStringAsync()}");
+        if (clientId is { } c)
+        {
+            http.DefaultRequestHeaders.Add("X-Client-Id", c.ToString());
+        }
+
+        return http;
     }
 
     async Task IAsyncLifetime.DisposeAsync()

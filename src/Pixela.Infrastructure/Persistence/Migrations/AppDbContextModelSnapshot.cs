@@ -1088,9 +1088,6 @@ namespace Pixela.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("ActingClientId")
-                        .HasColumnType("uuid");
-
                     b.Property<Guid?>("ClientId")
                         .HasColumnType("uuid");
 

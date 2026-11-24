@@ -41,5 +41,11 @@ public interface IAppDbContext
     /// <summary>Borra un bot y todo lo que cuelga de él (el consumo histórico se conserva). SQL directo, sin filtro: quien llama ya comprobó el acceso.</summary>
     Task DeleteBotCascadeAsync(Guid botId, CancellationToken ct);
 
+    /// <summary>Pasa todo lo de un bot (secretos, conocimiento, canales, conversaciones, mensajes, adjuntos, contactos) a otro cliente, en una transacción. SQL directo.</summary>
+    Task ReassignBotClientAsync(Guid botId, Guid clientId, CancellationToken ct);
+
+    /// <summary>Candado de la transacción en curso para el primer arranque: dos creaciones simultáneas del dueño se serializan.</summary>
+    Task AcquireSetupLockAsync(CancellationToken ct);
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

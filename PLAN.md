@@ -80,7 +80,7 @@ Todo lo demás vive en la base y se edita desde el panel:
 | 1 ✅ | Dominio y persistencia: entidades de §2, `AppDbContext`, filtro por cliente, migración `InitialCreate` | Pruebas de dominio y una migración limpia |
 | 2 ✅ | Servicios del chat copiados y adaptados; secretos por bot; SSRF compartido | Pruebas de chat/conocimiento/MCP en verde |
 | 3 ✅ | Meta por bot: webhook `/{botKey}`, firma con la app del bot, token auto | Pruebas de canales en verde; verificación de Meta con un bot real |
-| 4 | Auth y roles: agencia, ClientAdmin (gestiona admins y operadores), Operador; salto a cliente; primer arranque | Pruebas de permisos en verde |
+| 4 ✅ | Auth y roles: agencia, ClientAdmin (gestiona admins y operadores), Operador; salto a cliente; primer arranque | Pruebas de permisos en verde |
 | 5 | Panel con marca Pixel DC: clientes, assets, bots, pestaña Integraciones (Claude, Meta, MCP, Supabase), bandeja, uso | `npm run build/lint/test` en verde; revisión visual |
 | 6 | Migración de datos: Don Porko y Pixel DC (ver §7) | Ambos bots responden en Pixela con su conocimiento |
 | 7 | Despliegue: droplet Ubuntu 26.04, PostgreSQL, Caddy, systemd, script de despliegue desde Git, respaldos | Panel, widget y webhook de Meta funcionando en el dominio de Pixel DC |
@@ -132,7 +132,18 @@ Script de una sola vez (`tools/Pixela.Migrator`) que lee la base de FacilCorreo 
 - **Caddy** debe enviar `/meta/*` a la API (Fase 7).
 - Pruebas: las ~35 del webhook de FacilCorreo, adaptadas a una app por bot.
 
-## 11. Pendientes
+## 11. Decisiones de la Fase 4 (acceso y roles)
+
+- **Sesión por cookie** `px_session` (HttpOnly, SameSite=Strict, Secure en producción) y cabecera anti-CSRF `X-Requested-With: Pixela` en todo lo que modifica datos. Contraseñas Argon2id, bloqueo por intentos, 2FA opcional con códigos de recuperación (firmados con llaves derivadas de la maestra).
+- **Roles y políticas:** `panel:session` (cualquiera, incluida la bandeja del operador), `panel:client-admin` (administrador del cliente y agencia: conocimiento, contactos, uso, respuestas rápidas, equipo del cliente), `panel:agency` (clientes, assets, bots, llave de Claude, app de Meta, canales, conexiones, configuración) y `panel:agency-owner` (equipo de la agencia).
+- **Selector de cliente:** la agencia envía `X-Client-Id` para trabajar con un cliente; sin él ve todos. Un usuario de cliente siempre queda en el suyo (pedir otro da 403).
+- **Equipos:** el administrador de un cliente invita y gestiona administradores y operadores de su cliente; la agencia también, eligiendo el cliente. El equipo de la agencia solo lo cambia su dueño; siempre queda un dueño activo.
+- **Cliente suspendido:** sus usuarios no entran y sus sesiones dejan de valer; sus bots no atienden.
+- **Primer arranque:** `GET/POST /panel/setup` crea al dueño de la agencia mientras no exista ningún usuario (con candado en la base); después queda cerrado. Ya no hay usuario ni contraseña en variables de entorno.
+- **Mover un bot** a otro asset (de otro cliente incluso) lleva consigo secretos, conocimiento, canales, conversaciones, mensajes, adjuntos y contactos; el consumo de meses anteriores se queda donde ocurrió.
+- Se quitaron de FacilCorreo: subdominios por cliente, pase de acceso entre subdominios, pertenencias múltiples y consola de superadmin.
+
+## 12. Pendientes
 
 - Dominio del panel de Pixela (¿`chat.pixeldc.com`, `bots.pixeldc.com`…?) y acceso a su DNS.
 - Logo de Pixela (robot «DC» + «PIXEL@», recibido en el chat): guardarlo en el repo (`web/public/pixela-logo.png`) para el panel y el ícono; idealmente también en SVG y en versión para fondo oscuro.

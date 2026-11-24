@@ -14,7 +14,7 @@ using Pixela.Infrastructure.Persistence;
 namespace Pixela.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261124155459_InitialCreate")]
+    [Migration("20261124171152_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -1089,9 +1089,6 @@ namespace Pixela.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("ActingClientId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid?>("ClientId")

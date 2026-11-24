@@ -5,6 +5,8 @@ using Npgsql;
 using Pixela.Application.Abstractions;
 using Pixela.Application.Agency;
 using Pixela.Application.Chat;
+using Pixela.Application.Clients;
+using Pixela.Application.Users;
 using Pixela.Application.Http;
 using Pixela.Infrastructure.Chat;
 using Pixela.Infrastructure.Maintenance;
@@ -35,6 +37,16 @@ public static class DependencyInjection
         services.AddSingleton<ISecretProtector, AesGcmSecretProtector>();
         services.AddMemoryCache();
         services.AddScoped<AgencySettingsReader>();
+        services.AddScoped<AgencySettingsService>();
+        services.AddScoped<ClientService>();
+
+        // Panel: sesiones, equipos y primer arranque.
+        services.Configure<PanelOptions>(configuration.GetSection(PanelOptions.Section));
+        services.AddSingleton<IPasswordHasher, Argon2PasswordHasher>();
+        services.AddScoped<AuthService>();
+        services.AddScoped<UserService>();
+        services.AddScoped<ProfileService>();
+        services.AddScoped<SetupService>();
 
         // Chat: ajustes técnicos con valores por defecto (nada secreto: llaves y apps de Meta son de cada bot y viven cifradas en la base).
         services.Configure<ChatOptions>(configuration.GetSection(ChatOptions.Section));

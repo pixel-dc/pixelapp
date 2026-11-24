@@ -88,6 +88,26 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, IClient
         await transaction.CommitAsync(ct);
     }
 
+    public async Task ReassignBotClientAsync(Guid botId, Guid clientId, CancellationToken ct)
+    {
+        await using var transaction = await Database.BeginTransactionAsync(ct);
+        await Database.ExecuteSqlInterpolatedAsync($"UPDATE bots SET \"ClientId\" = {clientId} WHERE \"Id\" = {botId}", ct);
+        await Database.ExecuteSqlInterpolatedAsync($"UPDATE bot_secrets SET \"ClientId\" = {clientId} WHERE \"BotId\" = {botId}", ct);
+        await Database.ExecuteSqlInterpolatedAsync($"UPDATE bot_icons SET \"ClientId\" = {clientId} WHERE \"BotId\" = {botId}", ct);
+        await Database.ExecuteSqlInterpolatedAsync($"UPDATE knowledge_sources SET \"ClientId\" = {clientId} WHERE \"BotId\" = {botId}", ct);
+        await Database.ExecuteSqlInterpolatedAsync($"UPDATE knowledge_chunks SET \"ClientId\" = {clientId} WHERE \"BotId\" = {botId}", ct);
+        await Database.ExecuteSqlInterpolatedAsync($"UPDATE data_connections SET \"ClientId\" = {clientId} WHERE \"BotId\" = {botId}", ct);
+        await Database.ExecuteSqlInterpolatedAsync($"UPDATE channels SET \"ClientId\" = {clientId} WHERE \"BotId\" = {botId}", ct);
+        await Database.ExecuteSqlInterpolatedAsync($"UPDATE channel_inbound SET \"ClientId\" = {clientId} WHERE \"ChannelId\" IN (SELECT \"Id\" FROM channels WHERE \"BotId\" = {botId})", ct);
+        await Database.ExecuteSqlInterpolatedAsync($"UPDATE conversations SET \"ClientId\" = {clientId} WHERE \"BotId\" = {botId}", ct);
+        await Database.ExecuteSqlInterpolatedAsync($"UPDATE chat_messages SET \"ClientId\" = {clientId} WHERE \"ConversationId\" IN (SELECT \"Id\" FROM conversations WHERE \"BotId\" = {botId})", ct);
+        await Database.ExecuteSqlInterpolatedAsync($"UPDATE chat_attachments SET \"ClientId\" = {clientId} WHERE \"ConversationId\" IN (SELECT \"Id\" FROM conversations WHERE \"BotId\" = {botId})", ct);
+        await Database.ExecuteSqlInterpolatedAsync($"UPDATE leads SET \"ClientId\" = {clientId} WHERE \"BotId\" = {botId}", ct);
+        await transaction.CommitAsync(ct);
+    }
+
+    public Task AcquireSetupLockAsync(CancellationToken ct) => Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(7428101)", ct);
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Sin filtro: una sola fila con la configuración de la agencia (la crea DatabaseInitializer).

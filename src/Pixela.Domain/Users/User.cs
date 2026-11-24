@@ -89,12 +89,6 @@ public class UserSession
     public DateTimeOffset? RevokedAt { get; set; }
     public string? Ip { get; set; }
     public string? UserAgent { get; set; }
-
-    /// <summary>
-    /// Solo sesiones de agencia: cliente que está administrando desde el selector. Null = vista de agencia (todos los clientes).
-    /// El usuario de la agencia sigue siendo el responsable de lo que haga.
-    /// </summary>
-    public Guid? ActingClientId { get; set; }
 }
 
 /// <summary>
