@@ -1,0 +1,25 @@
+[Unit]
+Description=Pixela procesos de fondo (canales de Meta, indexado de conocimiento, retención)
+After=network-online.target postgresql.service pixela-api.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pixela
+Group=pixela
+WorkingDirectory=/opt/pixela/workers
+ExecStart=/usr/bin/dotnet /opt/pixela/workers/Pixela.Workers.dll
+EnvironmentFile=/etc/pixela/pixela.env
+Environment=DOTNET_ENVIRONMENT=Production
+Environment=Meta__AttachmentsPath=/var/lib/pixela/attachments
+Restart=always
+RestartSec=5
+MemoryMax=450M
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/pixela
+
+[Install]
+WantedBy=multi-user.target

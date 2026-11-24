@@ -1,0 +1,6 @@
+# Caddy solo pone el HTTPS (certificado de Let's Encrypt automático) y pasa todo a la API, que también sirve el panel.
+# Cambia el subdominio por el que apunte (registro A) a este servidor.
+bots.pixeldc.com {
+	encode zstd gzip
+	reverse_proxy localhost:5180
+}

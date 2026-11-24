@@ -83,7 +83,7 @@ Todo lo demás vive en la base y se edita desde el panel:
 | 4 ✅ | Auth y roles: agencia, ClientAdmin (gestiona admins y operadores), Operador; salto a cliente; primer arranque | Pruebas de permisos en verde |
 | 5 ✅ | Panel con marca Pixel DC: clientes, assets, bots, pestaña Integraciones (Claude, Meta, MCP, Supabase), bandeja, uso | `npm run build/lint/test` en verde; revisión visual |
 | 6 ✅ | Migración de datos: Don Porko y Pixel DC (ver §7) | Ambos bots responden en Pixela con su conocimiento |
-| 7 | Despliegue: droplet Ubuntu 26.04, PostgreSQL, Caddy, systemd, script de despliegue desde Git, respaldos | Panel, widget y webhook de Meta funcionando en el dominio de Pixel DC |
+| 7 ✅ | Despliegue: droplet Ubuntu 26.04, PostgreSQL, Caddy, systemd, script de despliegue desde Git, respaldos | Panel, widget y webhook de Meta funcionando en el dominio de Pixel DC |
 | 8 | Documentación y entrega: README, guía de Meta por bot, manual de topes y cobro, manual de despliegue | Pixel DC despliega un cambio por su cuenta |
 
 ## 6. Marca Pixel DC (de pixeldc.com)
@@ -159,7 +159,16 @@ Script de una sola vez (`tools/Pixela.Migrator`) que lee la base de FacilCorreo 
 - El consumo mensual por cuenta pasa al bot (al más antiguo si había varios). Los códigos de recuperación del 2FA no se migran.
 - Probada con el esquema real de FacilCorreo (`tests/Pixela.Migrator.Tests/facilcorreo-schema.sql`, generado de sus migraciones el 2026-11-24). Si FacilCorreo cambia su esquema antes de migrar, regenerar ese archivo y volver a correr las pruebas.
 
-## 14. Pendientes
+## 14. Decisiones de la Fase 7 (despliegue)
+
+- Repositorio: `github.com/pixel-dc/pixelapp` (rama `main`).
+- Sin Docker. **Caddy mínimo** solo para el HTTPS (Meta exige webhooks https y la cookie de sesión es segura): un bloque con `reverse_proxy localhost:5180`.
+- **La API sirve el panel web** (`wwwroot`, con `index.html` para las rutas del panel y 404 para rutas de API inexistentes): un solo proceso detrás de Caddy.
+- `deploy/deploy.sh` despliega desde Git en el propio servidor, con versiones en `/opt/pixela/releases`, vuelta atrás automática si `/health` no responde y `--rollback`.
+- Servicios systemd endurecidos (`pixela-api`, `pixela-workers`) y copia diaria de la base (`pixela-backup.timer`).
+- La preparación del servidor la hace Pixel DC: `deploy/README.md` lista requisitos y pasos. Las plantillas no se han probado aún en el droplet real.
+
+## 15. Pendientes
 
 - Dominio del panel de Pixela (¿`chat.pixeldc.com`, `bots.pixeldc.com`…?) y acceso a su DNS.
 - Logo de Pixela (robot «DC» + «PIXEL@», recibido en el chat): guardarlo como `web/public/pixela-logo.png` (el panel ya lo usa si existe); idealmente también en SVG.

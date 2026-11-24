@@ -4,6 +4,8 @@ Plataforma de chatbots con IA de **Pixel DC**: la agencia crea clientes, cada cl
 Los bots responden en la web (widget) y por WhatsApp, Messenger e Instagram, con su propia llave de Claude y su propia app de Meta.
 
 - Plan, decisiones y fases: [PLAN.md](PLAN.md)
+- Despliegue en el servidor: [deploy/README.md](deploy/README.md)
+- Migración desde FacilCorreo: [tools/Pixela.Migrator/README.md](tools/Pixela.Migrator/README.md)
 
 ## Requisitos
 .NET SDK 10, Node 22 y PostgreSQL 17 o superior.

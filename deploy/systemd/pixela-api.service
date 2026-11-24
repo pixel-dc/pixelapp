@@ -1,0 +1,28 @@
+[Unit]
+Description=Pixela API y panel web
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pixela
+Group=pixela
+WorkingDirectory=/opt/pixela/api
+ExecStart=/usr/bin/dotnet /opt/pixela/api/Pixela.Api.dll
+EnvironmentFile=/etc/pixela/pixela.env
+Environment=ASPNETCORE_URLS=http://127.0.0.1:5180
+Environment=ASPNETCORE_ENVIRONMENT=Production
+# Detrás de Caddy: confiar en sus cabeceras X-Forwarded-* (solo desde loopback).
+Environment=Proxy__Enabled=true
+Environment=Meta__AttachmentsPath=/var/lib/pixela/attachments
+Restart=always
+RestartSec=5
+MemoryMax=600M
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/pixela
+
+[Install]
+WantedBy=multi-user.target

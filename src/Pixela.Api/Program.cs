@@ -58,6 +58,7 @@ if (app.Configuration.GetValue("Database:MigrateOnStartup", true))
 }
 
 app.UseProxyForwarding(builder.Configuration);
+app.UseWebPanel();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
