@@ -97,6 +97,7 @@ export function ConversationPane({
           <p className="truncate text-xs text-muted-foreground">
             {ch.label}
             {conversation.bot_name ? ` · ${conversation.bot_name}` : ''} · {conversation.messages} mensajes
+            {(conversation.sessions ?? 1) > 1 ? ` · ${conversation.sessions} conversaciones` : ''}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -111,7 +112,13 @@ export function ConversationPane({
             </Button>
           )}
           {onDelete && (
-            <Button variant="ghost" size="icon" onClick={onDelete} aria-label="Eliminar conversación" title="Eliminar conversación">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onDelete}
+              aria-label={(conversation.sessions ?? 1) > 1 ? 'Eliminar el historial de este contacto' : 'Eliminar conversación'}
+              title={(conversation.sessions ?? 1) > 1 ? 'Eliminar el historial de este contacto' : 'Eliminar conversación'}
+            >
               <Trash2Icon />
             </Button>
           )}
@@ -121,7 +128,13 @@ export function ConversationPane({
       <div ref={scroller} className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto bg-muted/40 p-3 sm:p-5" aria-label="Mensajes de la conversación">
         {messages.isLoading && <Skeleton className="h-20 w-full" />}
         {messages.data?.messages.map((m, i, all) => (
-          <Bubble key={i} message={m} previous={all[i - 1]} fileUrl={(a) => `${base}/attachments/${a.id}`} />
+          <Bubble
+            key={i}
+            message={m}
+            previous={all[i - 1]}
+            // El archivo se abre por la conversación a la que pertenece: en un hilo con varias, no siempre es la actual.
+            fileUrl={(a) => `/panel/bots/${botId}/conversations/${a.conversation_id ?? conversation.id}/attachments/${a.id}`}
+          />
         ))}
       </div>
 
@@ -186,11 +199,20 @@ const sizeOf = (bytes: number) => (bytes >= 1_000_000 ? `${(bytes / 1_000_000).t
 export function Bubble({ message: m, previous, fileUrl }: { message: TranscriptMessage; previous?: TranscriptMessage; fileUrl: (a: TranscriptAttachment) => string }) {
   const mine = m.role !== 'user'
   const newDay = !previous || dayOf(previous.created_at) !== dayOf(m.created_at)
+  // El contacto volvió a escribir pasadas las 24 horas: es otra conversación del mismo hilo (la unidad con la que se cuenta).
+  const newSession = !!previous && !!m.conversation_id && !!previous.conversation_id && m.conversation_id !== previous.conversation_id
   const hasFiles = !!m.attachments?.length
   // El texto «📎 Imagen» solo describe el adjunto: con el archivo a la vista no hace falta repetirlo.
   const text = hasFiles && m.content.startsWith('📎') ? '' : m.content
   return (
     <>
+      {newSession && (
+        <div className="mt-3 flex items-center gap-3 self-stretch text-xs text-muted-foreground" role="separator" aria-label="Nueva conversación">
+          <span className="h-px flex-1 bg-border" />
+          Nueva conversación
+          <span className="h-px flex-1 bg-border" />
+        </div>
+      )}
       {newDay && <div className="my-2 self-center rounded-full bg-background px-3 py-0.5 text-xs text-muted-foreground shadow-sm">{dayOf(m.created_at)}</div>}
       <div className={`flex max-w-[85%] flex-col ${mine ? 'items-end self-end' : 'items-start self-start'}`}>
         {mine && <span className="mb-0.5 px-1 text-xs text-muted-foreground">{m.role === 'agent' ? 'Tu equipo' : 'Chatbot'}</span>}

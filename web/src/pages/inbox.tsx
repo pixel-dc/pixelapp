@@ -165,6 +165,7 @@ export default function InboxPage() {
                           <span className="mt-0.5 block truncate text-sm text-muted-foreground">{c.first_message ?? '—'}</span>
                           <span className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                             <span className="truncate">{c.bot_name}</span>
+                            {(c.sessions ?? 1) > 1 && <span className="shrink-0">· {c.sessions} conversaciones</span>}
                             {c.needs_attention && <Badge variant="destructive">{c.human_active ? 'Esperando tu respuesta' : 'Necesita atención'}</Badge>}
                             {c.human_active && !c.needs_attention && <Badge variant="secondary">Atiende una persona</Badge>}
                           </span>
@@ -207,8 +208,12 @@ export default function InboxPage() {
       <ConfirmDialog
         open={!!removing}
         onOpenChange={(o) => !o && setRemoving(null)}
-        title="Eliminar conversación"
-        description="Se borran los mensajes de esta conversación y sus archivos. No se puede deshacer."
+        title={(removing?.sessions ?? 1) > 1 ? 'Eliminar el historial del contacto' : 'Eliminar conversación'}
+        description={
+          (removing?.sessions ?? 1) > 1
+            ? `Se borran las ${removing?.sessions} conversaciones de este contacto, con sus mensajes y archivos. No se puede deshacer.`
+            : 'Se borran los mensajes de esta conversación y sus archivos. No se puede deshacer.'
+        }
         confirmLabel="Eliminar"
         pending={remove.isPending}
         onConfirm={() => removing && remove.mutate(removing)}

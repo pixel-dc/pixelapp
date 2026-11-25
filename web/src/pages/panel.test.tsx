@@ -187,6 +187,43 @@ describe('agencia', () => {
     expect(screen.queryByRole('button', { name: 'Reparar' })).not.toBeInTheDocument() // ya no queda nada por reparar
   })
 
+  it('la bandeja muestra un solo hilo por contacto con todo su historial y no deja responder pasadas las 24 horas', async () => {
+    const A = 'conv-reciente'
+    const OLD = 'conv-antigua'
+    mockApi({
+      'GET /panel/me/': { body: { user: ME.agencyOwner } },
+      'GET /panel/clients': { body: { clients: [CLIENT] } },
+      'GET /panel/bots/inbox': {
+        body: {
+          conversations: [
+            { id: A, first_message: 'Buenas de nuevo', messages: 4, started_at: '2026-11-20T10:00:00Z', last_message_at: '2026-11-24T10:00:00Z', channel: 'whatsapp', contact: 'Ana (573001112233)', needs_attention: false, human_active: false, can_reply: false, bot_id: 'b1', bot_name: 'Porky', sessions: 2 },
+          ],
+        },
+      },
+      ['GET /panel/bots/b1/conversations/' + A]: {
+        body: {
+          messages: [
+            { role: 'user', content: 'Hola, ¿precios?', created_at: '2026-11-20T10:00:00Z', conversation_id: OLD },
+            { role: 'assistant', content: 'Claro, te cuento.', created_at: '2026-11-20T10:01:00Z', conversation_id: OLD },
+            { role: 'user', content: 'Buenas de nuevo', created_at: '2026-11-24T10:00:00Z', conversation_id: A },
+            { role: 'assistant', content: '¡Hola Ana!', created_at: '2026-11-24T10:01:00Z', conversation_id: A },
+          ],
+        },
+      },
+    })
+    renderApp('/bandeja?bot=b1&c=' + A)
+
+    // Un solo renglón en la lista, que dice cuántas conversaciones tiene el hilo.
+    expect((await screen.findAllByText(/2 conversaciones/)).length).toBeGreaterThan(0)
+    // El historial completo, de las dos conversaciones, con la separación entre ellas.
+    expect(await screen.findByText('Hola, ¿precios?')).toBeInTheDocument()
+    expect(screen.getByText('¡Hola Ana!')).toBeInTheDocument()
+    expect(screen.getAllByRole('separator', { name: 'Nueva conversación' })).toHaveLength(1)
+    // Pasadas las 24 horas se lee todo pero no se puede escribir hasta que el cliente vuelva a escribir.
+    expect(screen.queryByLabelText('Tu respuesta')).not.toBeInTheDocument()
+    expect(screen.getByText(/pasaron más de 24 horas/)).toBeInTheDocument()
+  })
+
   it('la ficha del cliente muestra sus assets con sus chatbots y arranca ilimitado', async () => {
     mockApi({
       'GET /panel/me/': { body: { user: ME.agencyOwner } },

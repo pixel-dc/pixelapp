@@ -78,6 +78,7 @@ export function ConversationsPanel({ botId }: { botId: string }) {
                 <TableRow key={c.id}>
                   <TableCell className="max-w-xs truncate">
                     {c.first_message ?? '—'}
+                    {(c.sessions ?? 1) > 1 && <Badge variant="outline" className="ml-2">{c.sessions} conversaciones</Badge>}
                     {c.human_active && <Badge variant="secondary" className="ml-2">Atiende una persona</Badge>}
                     {c.needs_attention && <Badge variant="destructive" className="ml-2">{c.human_active ? 'Esperando tu respuesta' : 'Necesita atención'}</Badge>}
                   </TableCell>

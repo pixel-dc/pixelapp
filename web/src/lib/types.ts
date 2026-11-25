@@ -173,6 +173,11 @@ export interface ConversationSummary {
   /** Solo en la bandeja única: chatbot al que pertenece. */
   bot_id?: string | null
   bot_name?: string | null
+  /**
+   * En un canal, la lista muestra un solo hilo por contacto: cuántas conversaciones de 24 horas lo forman. `id` es la más reciente (a la que se
+   * responde); `messages` y `started_at` abarcan todo el historial del contacto.
+   */
+  sessions?: number
 }
 
 /** Canal de Meta conectado a un chatbot. El token nunca llega al panel. */
@@ -221,6 +226,8 @@ export interface TranscriptAttachment {
   size_bytes: number
   /** Falso si ya venció (se conservan pocos días) o no se pudo descargar. */
   available: boolean
+  /** Conversación a la que pertenece el archivo: en un hilo con varias, se abre por la suya. */
+  conversation_id?: string | null
 }
 
 export interface TranscriptMessage {
@@ -229,6 +236,8 @@ export interface TranscriptMessage {
   content: string
   created_at: string
   attachments?: TranscriptAttachment[] | null
+  /** Conversación de 24 horas a la que pertenece: cambia donde empieza una nueva. */
+  conversation_id?: string | null
 }
 
 export interface Lead {

@@ -10,16 +10,22 @@ namespace Pixela.Application.Chat;
 /// <param name="HumanActive">Una persona del negocio atiende la conversación y el bot no responde.</param>
 /// <param name="CanReply">El negocio todavía puede escribir al contacto: el chat web, o un canal activo, y el contacto escribió en las últimas 24 horas.</param>
 /// <param name="BotId">Solo en la bandeja única: a qué chatbot pertenece la conversación.</param>
+/// <param name="Sessions">
+/// En un canal, la bandeja muestra un solo hilo por contacto: aquí cuántas conversaciones de 24 horas lo forman. <c>Id</c> es la más reciente
+/// (a la que se responde); <c>Messages</c> y <c>StartedAt</c> abarcan todo el historial del contacto.
+/// </param>
 public sealed record ConversationSummary(
     Guid Id, string? FirstMessage, int Messages, DateTimeOffset StartedAt, DateTimeOffset LastMessageAt, string? Channel = null, string? Contact = null, bool NeedsAttention = false,
-    bool HumanActive = false, bool CanReply = false, Guid? BotId = null, string? BotName = null);
+    bool HumanActive = false, bool CanReply = false, Guid? BotId = null, string? BotName = null, int Sessions = 1);
 
 public sealed record AgentReplyRequest(string? Text);
 
 /// <param name="Available">El archivo todavía está guardado y se puede abrir; si no, ya venció o no se pudo descargar.</param>
-public sealed record TranscriptAttachment(Guid Id, string Kind, string? MimeType, string? FileName, long SizeBytes, bool Available);
+/// <param name="ConversationId">Conversación a la que pertenece el archivo: en un hilo con varias conversaciones el archivo se abre por la suya.</param>
+public sealed record TranscriptAttachment(Guid Id, string Kind, string? MimeType, string? FileName, long SizeBytes, bool Available, Guid? ConversationId = null);
 
-public sealed record TranscriptMessage(string Role, string Content, DateTimeOffset CreatedAt, IReadOnlyList<TranscriptAttachment>? Attachments = null);
+/// <param name="ConversationId">Conversación de 24 horas a la que pertenece el mensaje (el panel marca dónde empieza cada una).</param>
+public sealed record TranscriptMessage(string Role, string Content, DateTimeOffset CreatedAt, IReadOnlyList<TranscriptAttachment>? Attachments = null, Guid? ConversationId = null);
 
 public sealed record AttachmentFile(Stream Content, string MimeType, string? FileName);
 
@@ -38,9 +44,10 @@ public sealed class ConversationService(IAppDbContext db, IMetaGraph graph, ISec
             return ServiceResult<IReadOnlyList<ConversationSummary>>.Fail("not_found", "Chatbot no encontrado.");
         }
 
+        // Se leen más filas de las que se muestran: varias conversaciones de un mismo contacto se juntan en un hilo.
         var rows = await db.Conversations.AsNoTracking().Where(c => c.BotId == botId)
-            .OrderByDescending(c => c.LastMessageAt).Take(PageSize).ToListAsync(ct);
-        return ServiceResult<IReadOnlyList<ConversationSummary>>.Ok(await SummarizeAsync(rows, null, ct));
+            .OrderByDescending(c => c.LastMessageAt).Take(PageSize * 4).ToListAsync(ct);
+        return ServiceResult<IReadOnlyList<ConversationSummary>>.Ok(await SummarizeAsync(await GroupAsync(rows, PageSize, attentionFirst: false, ct), null, ct));
     }
 
     public const int InboxSize = 100;
@@ -57,14 +64,47 @@ public sealed class ConversationService(IAppDbContext db, IMetaGraph graph, ISec
             query = query.Where(c => c.NeedsAttention || c.HumanActive);
         }
 
-        var rows = await query.OrderByDescending(c => c.NeedsAttention).ThenByDescending(c => c.LastMessageAt).Take(InboxSize).ToListAsync(ct);
-        var botIds = rows.Select(c => c.BotId).Distinct().ToList();
+        var rows = await query.OrderByDescending(c => c.NeedsAttention).ThenByDescending(c => c.LastMessageAt).Take(InboxSize * 4).ToListAsync(ct);
+        var threads = await GroupAsync(rows, InboxSize, attentionFirst: true, ct);
+        var botIds = threads.Select(t => t.Latest.BotId).Distinct().ToList();
         var names = await db.Bots.AsNoTracking().Where(b => botIds.Contains(b.Id)).ToDictionaryAsync(b => b.Id, b => b.Name, ct);
-        return await SummarizeAsync(rows, names, ct);
+        return await SummarizeAsync(threads, names, ct);
     }
 
-    private async Task<IReadOnlyList<ConversationSummary>> SummarizeAsync(List<Conversation> rows, IReadOnlyDictionary<Guid, string>? botNames, CancellationToken ct)
+    /// <summary>Un contacto de un canal: todas sus conversaciones de 24 horas juntas. <c>Latest</c> es la más reciente, la que recibe las acciones (responder, tomar, devolver).</summary>
+    private sealed record Thread(Conversation Latest, int Sessions, int Messages, DateTimeOffset StartedAt, bool NeedsAttention);
+
+    private static string ThreadKey(Conversation c) => c.ChannelId is { } channel && c.ContactId is { } contact ? $"t:{channel}:{contact}" : $"c:{c.Id}";
+
+    /// <summary>
+    /// Junta en un solo hilo las conversaciones del mismo contacto en el mismo canal (el chat web sigue siendo una por visitante), como el historial de un
+    /// chat de Messenger. Cada conversación de 24 horas sigue existiendo por debajo: es la unidad con la que se cuenta y se cobra.
+    /// </summary>
+    private async Task<List<Thread>> GroupAsync(List<Conversation> rows, int limit, bool attentionFirst, CancellationToken ct)
     {
+        var groups = rows.GroupBy(ThreadKey).Select(g => g.ToList()).ToList();
+
+        // Las filas leídas pueden no traer las conversaciones antiguas de cada contacto: se completan para contarlas bien.
+        var withChannel = groups.Select(g => g[0]).Where(c => c.ChannelId is not null && c.ContactId is not null).ToList();
+        var channelIds = withChannel.Select(c => c.ChannelId!.Value).Distinct().ToList();
+        var contactIds = withChannel.Select(c => c.ContactId!).Distinct().ToList();
+        var full = channelIds.Count == 0
+            ? []
+            : await db.Conversations.AsNoTracking().Where(c => c.ChannelId != null && channelIds.Contains(c.ChannelId.Value) && c.ContactId != null && contactIds.Contains(c.ContactId)).ToListAsync(ct);
+        var byKey = full.GroupBy(ThreadKey).ToDictionary(g => g.Key, g => g.ToList());
+
+        var threads = groups.Select(g =>
+        {
+            var members = byKey.TryGetValue(ThreadKey(g[0]), out var all) ? all : g;
+            return new Thread(members.OrderByDescending(c => c.LastMessageAt).First(), members.Count, members.Sum(c => c.MessageCount), members.Min(c => c.CreatedAt), members.Any(c => c.NeedsAttention));
+        });
+        return (attentionFirst ? threads.OrderByDescending(t => t.NeedsAttention).ThenByDescending(t => t.Latest.LastMessageAt) : threads.OrderByDescending(t => t.Latest.LastMessageAt))
+            .Take(limit).ToList();
+    }
+
+    private async Task<IReadOnlyList<ConversationSummary>> SummarizeAsync(List<Thread> threads, IReadOnlyDictionary<Guid, string>? botNames, CancellationToken ct)
+    {
+        var rows = threads.Select(t => t.Latest).ToList();
         var ids = rows.Select(c => c.Id).ToList();
         var firsts = await db.ChatMessages.AsNoTracking().Where(m => ids.Contains(m.ConversationId) && m.Role == "user")
             .OrderBy(m => m.CreatedAt).Select(m => new { m.ConversationId, m.Content }).ToListAsync(ct);
@@ -78,17 +118,18 @@ public sealed class ConversationService(IAppDbContext db, IMetaGraph graph, ISec
             .GroupBy(m => m.ConversationId).Select(g => new { Id = g.Key, At = g.Max(m => m.CreatedAt) }).ToDictionaryAsync(x => x.Id, x => x.At, ct);
         var now = clock.GetUtcNow();
 
-        return rows
-            .Select(c =>
+        return threads
+            .Select(t =>
             {
+                var c = t.Latest;
                 var channel = c.ChannelId is { } chId ? channels.GetValueOrDefault(chId) : null;
                 // Chat web (sin canal): el visitante puede seguir en la página; con canal, Meta exige que sea el canal activo y dentro de las 24 horas.
                 var canReply = (c.ChannelId is null || channel is { Status: ChannelStatus.Active }) && lastUser.TryGetValue(c.Id, out var at) && now - at < ChatService.ConversationWindow;
                 return new ConversationSummary(
-                    c.Id, firstByConversation.GetValueOrDefault(c.Id) is { } f ? Snippet(f) : null, c.MessageCount, c.CreatedAt, c.LastMessageAt,
+                    c.Id, firstByConversation.GetValueOrDefault(c.Id) is { } f ? Snippet(f) : null, t.Messages, t.StartedAt, c.LastMessageAt,
                     channel?.Kind.ToString().ToLowerInvariant(),
                     c.ContactId is null ? null : (string.IsNullOrWhiteSpace(c.ContactName) ? c.ContactId : $"{c.ContactName} ({c.ContactId})"),
-                    c.NeedsAttention, c.HumanActive, canReply, botNames is null ? null : c.BotId, botNames?.GetValueOrDefault(c.BotId));
+                    t.NeedsAttention, c.HumanActive, canReply, botNames is null ? null : c.BotId, botNames?.GetValueOrDefault(c.BotId), t.Sessions);
             })
             .ToList();
     }
@@ -120,9 +161,33 @@ public sealed class ConversationService(IAppDbContext db, IMetaGraph graph, ISec
         conversation.HumanActive = false;
         conversation.HumanActivityAt = null;
         conversation.NeedsAttention = false;
+        await ClearSiblingAttentionAsync(conversation, ct);
         await db.SaveChangesAsync(ct);
         return ServiceResult<bool>.Ok(true);
     }
+
+    /// <summary>
+    /// El hilo del contacto se atiende como uno solo: al devolver o responder se quita el aviso «necesita atención» también de sus conversaciones
+    /// anteriores, para que no quede una marca que ya nadie ve.
+    /// </summary>
+    private async Task ClearSiblingAttentionAsync(Conversation conversation, CancellationToken ct)
+    {
+        if (conversation.ChannelId is null || conversation.ContactId is null)
+        {
+            return;
+        }
+
+        foreach (var other in await db.Conversations.Where(c => c.ChannelId == conversation.ChannelId && c.ContactId == conversation.ContactId && c.Id != conversation.Id && c.NeedsAttention).ToListAsync(ct))
+        {
+            other.NeedsAttention = false;
+        }
+    }
+
+    /// <summary>Ids de todas las conversaciones del hilo del contacto (la propia incluida). En el chat web, solo la propia.</summary>
+    private async Task<List<Guid>> ThreadIdsAsync(Conversation conversation, CancellationToken ct) =>
+        conversation.ChannelId is null || conversation.ContactId is null
+            ? [conversation.Id]
+            : await db.Conversations.AsNoTracking().Where(c => c.BotId == conversation.BotId && c.ChannelId == conversation.ChannelId && c.ContactId == conversation.ContactId).Select(c => c.Id).ToListAsync(ct);
 
     /// <summary>
     /// Una persona del negocio le escribe al contacto por el mismo canal. Solo se puede dentro de las 24 horas posteriores al último mensaje del contacto
@@ -229,26 +294,36 @@ public sealed class ConversationService(IAppDbContext db, IMetaGraph graph, ISec
         conversation.HumanActivityAt = now;
         conversation.NeedsAttention = false;
         conversation.LastMessageAt = now;
+        await ClearSiblingAttentionAsync(conversation, ct);
         await db.SaveChangesAsync(ct);
         return ServiceResult<bool>.Ok(true);
     }
 
+    public const int MaxTranscriptMessages = 1000;
+
+    /// <summary>
+    /// El historial completo del contacto: todas sus conversaciones del canal, en orden, como un solo chat. Cada mensaje trae la conversación de
+    /// 24 horas a la que pertenece para que el panel marque dónde empieza cada una.
+    /// </summary>
     public async Task<ServiceResult<IReadOnlyList<TranscriptMessage>>> GetTranscriptAsync(Guid botId, Guid conversationId, CancellationToken ct)
     {
-        if (!await db.Conversations.AnyAsync(c => c.Id == conversationId && c.BotId == botId, ct))
+        var conversation = await db.Conversations.AsNoTracking().FirstOrDefaultAsync(c => c.Id == conversationId && c.BotId == botId, ct);
+        if (conversation is null)
         {
             return ServiceResult<IReadOnlyList<TranscriptMessage>>.Fail("not_found", "Conversación no encontrada.");
         }
 
-        var rows = await db.ChatMessages.AsNoTracking().Where(m => m.ConversationId == conversationId)
-            .OrderBy(m => m.CreatedAt).Select(m => new { m.Id, m.Role, m.Content, m.CreatedAt }).ToListAsync(ct);
-        var files = (await db.ChatAttachments.AsNoTracking().Where(a => a.ConversationId == conversationId && a.MessageId != null).OrderBy(a => a.CreatedAt).ToListAsync(ct))
+        var ids = await ThreadIdsAsync(conversation, ct);
+        var rows = (await db.ChatMessages.AsNoTracking().Where(m => ids.Contains(m.ConversationId))
+            .OrderByDescending(m => m.CreatedAt).Take(MaxTranscriptMessages).Select(m => new { m.Id, m.ConversationId, m.Role, m.Content, m.CreatedAt }).ToListAsync(ct))
+            .OrderBy(m => m.CreatedAt).ToList();
+        var files = (await db.ChatAttachments.AsNoTracking().Where(a => ids.Contains(a.ConversationId) && a.MessageId != null).OrderBy(a => a.CreatedAt).ToListAsync(ct))
             .GroupBy(a => a.MessageId!.Value).ToDictionary(g => g.Key, g => g.ToList());
         var now = clock.GetUtcNow();
         IReadOnlyList<TranscriptMessage> messages = rows
             .Select(m => new TranscriptMessage(m.Role, m.Content, m.CreatedAt, files.TryGetValue(m.Id, out var list)
-                ? list.Select(a => new TranscriptAttachment(a.Id, a.Kind, a.MimeType, a.FileName, a.SizeBytes, a.Stored && a.ExpiresAt > now)).ToList()
-                : null))
+                ? list.Select(a => new TranscriptAttachment(a.Id, a.Kind, a.MimeType, a.FileName, a.SizeBytes, a.Stored && a.ExpiresAt > now, a.ConversationId)).ToList()
+                : null, m.ConversationId))
             .ToList();
         return ServiceResult<IReadOnlyList<TranscriptMessage>>.Ok(messages);
     }
@@ -275,7 +350,7 @@ public sealed class ConversationService(IAppDbContext db, IMetaGraph graph, ISec
         return ServiceResult<AttachmentFile>.Ok(new AttachmentFile(stream, a.MimeType ?? "application/octet-stream", a.FileName));
     }
 
-    /// <summary>Borra la conversación y sus mensajes (derecho de supresión). Los contactos dejados se conservan, sin enlace a la conversación.</summary>
+    /// <summary>Borra el hilo del contacto —todas sus conversaciones del canal, con sus mensajes y archivos— (derecho de supresión). Los contactos dejados se conservan, sin enlace a la conversación.</summary>
     public async Task<bool> DeleteConversationAsync(Guid botId, Guid conversationId, CancellationToken ct)
     {
         var conversation = await db.Conversations.FirstOrDefaultAsync(c => c.Id == conversationId && c.BotId == botId, ct);
@@ -284,20 +359,21 @@ public sealed class ConversationService(IAppDbContext db, IMetaGraph graph, ISec
             return false;
         }
 
-        var attachments = await db.ChatAttachments.Where(a => a.ConversationId == conversationId).ToListAsync(ct);
+        var ids = await ThreadIdsAsync(conversation, ct);
+        var attachments = await db.ChatAttachments.Where(a => ids.Contains(a.ConversationId)).ToListAsync(ct);
         foreach (var a in attachments)
         {
             attachmentStore.Delete(a.ClientId, a.Id);
         }
 
         db.ChatAttachments.RemoveRange(attachments);
-        db.ChatMessages.RemoveRange(await db.ChatMessages.Where(m => m.ConversationId == conversationId).ToListAsync(ct));
-        foreach (var lead in await db.Leads.Where(l => l.ConversationId == conversationId).ToListAsync(ct))
+        db.ChatMessages.RemoveRange(await db.ChatMessages.Where(m => ids.Contains(m.ConversationId)).ToListAsync(ct));
+        foreach (var lead in await db.Leads.Where(l => l.ConversationId != null && ids.Contains(l.ConversationId.Value)).ToListAsync(ct))
         {
             lead.ConversationId = null;
         }
 
-        db.Conversations.Remove(conversation);
+        db.Conversations.RemoveRange(await db.Conversations.Where(c => ids.Contains(c.Id)).ToListAsync(ct));
         await db.SaveChangesAsync(ct);
         return true;
     }
