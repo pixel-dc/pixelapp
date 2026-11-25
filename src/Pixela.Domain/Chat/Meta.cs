@@ -32,6 +32,12 @@ public class Channel
     /// <summary>Token de acceso cifrado con <c>ISecretProtector</c>. Nunca se devuelve por la API.</summary>
     public required string AccessTokenEncrypted { get; set; }
 
+    /// <summary>
+    /// Id de la cuenta que agrupa al canal en Meta: el WABA de un número de WhatsApp. Meta no permite deducirlo del número, y hace falta para
+    /// suscribir la app a esa cuenta (<c>/{waba}/subscribed_apps</c>). Opcional: sin él, el diagnóstico lo pide.
+    /// </summary>
+    public string? ProviderAccountId { get; set; }
+
     public ChannelStatus Status { get; set; } = ChannelStatus.Active;
     public DateTimeOffset CreatedAt { get; set; }
 }

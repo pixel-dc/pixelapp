@@ -68,6 +68,12 @@ public static class BotEndpoints
         bots.MapPost("/{id:guid}/meta-app/verify-token", async (Guid id, BotMetaAppService s, CancellationToken ct) =>
             PanelEndpoints.ToResult(await s.RegenerateVerifyTokenAsync(id, ct), a => new { meta_app = a }));
 
+        // Diagnóstico (solo lectura) y reparación automática de la conexión con Meta: lo que antes se hacía a mano en Meta for Developers.
+        bots.MapGet("/{id:guid}/meta/connection", async (Guid id, MetaConnectionService s, CancellationToken ct) =>
+            PanelEndpoints.ToResult(await s.DiagnoseAsync(id, ct), r => new { connection = r }));
+        bots.MapPost("/{id:guid}/meta/connection/repair", async (Guid id, MetaConnectionService s, CancellationToken ct) =>
+            PanelEndpoints.ToResult(await s.RepairAsync(id, ct), r => new { applied = r.Applied, connection = r.Report }));
+
         bots.MapGet("/{id:guid}/channels", async (Guid id, ChannelService s, CancellationToken ct) => PanelEndpoints.ToResult(await s.ListAsync(id, ct), l => new { channels = l.Channels }));
         bots.MapPost("/{id:guid}/channels", async (Guid id, ChannelRequest r, ChannelService s, CancellationToken ct) =>
             PanelEndpoints.ToResult(await s.CreateAsync(id, r, ct), c => new { channel = c }, StatusCodes.Status201Created));

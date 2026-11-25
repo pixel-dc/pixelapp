@@ -10,10 +10,11 @@ namespace Pixela.Application.Chat;
 /// <param name="ExternalId"><c>phone_number_id</c>, id de la página o id de la cuenta de Instagram (solo al crear).</param>
 /// <param name="AccessToken">Token de acceso de Meta. Al editar, si se envía reemplaza al anterior y reactiva el canal.</param>
 /// <param name="Status">active o disabled (solo al editar).</param>
-public sealed record ChannelRequest(string? Kind, string? ExternalId, string? DisplayName, string? AccessToken, string? Status);
+/// <param name="AccountId">ID del WABA de un canal de WhatsApp. Al editar, cadena vacía lo quita.</param>
+public sealed record ChannelRequest(string? Kind, string? ExternalId, string? DisplayName, string? AccessToken, string? Status, string? AccountId = null);
 
 /// <summary>Lo que el panel ve de un canal. El token nunca se devuelve, ni siquiera parcial.</summary>
-public sealed record ChannelView(Guid Id, string Kind, string ExternalId, string DisplayName, string Status, DateTimeOffset CreatedAt);
+public sealed record ChannelView(Guid Id, string Kind, string ExternalId, string DisplayName, string Status, DateTimeOffset CreatedAt, string? AccountId = null);
 
 public sealed record ChannelList(IReadOnlyList<ChannelView> Channels);
 
@@ -65,6 +66,12 @@ public sealed partial class ChannelService(IAppDbContext db, ISecretProtector se
             fields["access_token"] = "Pega el token de acceso de Meta completo (sin espacios).";
         }
 
+        var accountId = request.AccountId?.Trim();
+        if (!string.IsNullOrEmpty(accountId) && !ExternalIdPattern().IsMatch(accountId))
+        {
+            fields["account_id"] = "El ID de la cuenta de WhatsApp Business solo lleva letras, números y guiones.";
+        }
+
         if (fields.Count > 0)
         {
             return ServiceResult<ChannelView>.Fail("validation_error", fields.Values.First(), fields);
@@ -85,6 +92,7 @@ public sealed partial class ChannelService(IAppDbContext db, ISecretProtector se
             ExternalId = externalId,
             DisplayName = name,
             AccessTokenEncrypted = secrets.Protect(request.AccessToken!.Trim()),
+            ProviderAccountId = kind == ChannelKind.WhatsApp && !string.IsNullOrEmpty(accountId) ? accountId : null,
             CreatedAt = clock.GetUtcNow(),
         };
         db.Channels.Add(channel);
@@ -132,6 +140,27 @@ public sealed partial class ChannelService(IAppDbContext db, ISecretProtector se
             {
                 channel.AccessTokenEncrypted = secrets.Protect(request.AccessToken.Trim());
                 channel.Status = ChannelStatus.Active; // con un token nuevo, el canal vuelve a funcionar
+            }
+        }
+
+        if (request.AccountId is not null)
+        {
+            var accountId = request.AccountId.Trim();
+            if (accountId.Length == 0)
+            {
+                channel.ProviderAccountId = null;
+            }
+            else if (channel.Kind != ChannelKind.WhatsApp)
+            {
+                fields["account_id"] = "Solo los canales de WhatsApp llevan ID de cuenta.";
+            }
+            else if (!ExternalIdPattern().IsMatch(accountId))
+            {
+                fields["account_id"] = "El ID de la cuenta de WhatsApp Business solo lleva letras, números y guiones.";
+            }
+            else
+            {
+                channel.ProviderAccountId = accountId;
             }
         }
 
@@ -192,5 +221,5 @@ public sealed partial class ChannelService(IAppDbContext db, ISecretProtector se
         return t is { Length: >= 20 and <= 4000 } && !t.Any(c => char.IsWhiteSpace(c) || char.IsControl(c));
     }
 
-    private static ChannelView ToView(Channel c) => new(c.Id, c.Kind.ToString().ToLowerInvariant(), c.ExternalId, c.DisplayName, c.Status.ToString().ToLowerInvariant(), c.CreatedAt);
+    private static ChannelView ToView(Channel c) => new(c.Id, c.Kind.ToString().ToLowerInvariant(), c.ExternalId, c.DisplayName, c.Status.ToString().ToLowerInvariant(), c.CreatedAt, c.ProviderAccountId);
 }

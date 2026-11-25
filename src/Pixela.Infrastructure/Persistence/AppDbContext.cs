@@ -258,6 +258,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, IClient
             e.Property(x => x.ExternalId).HasMaxLength(100);
             e.Property(x => x.DisplayName).HasMaxLength(200);
             e.Property(x => x.AccessTokenEncrypted).HasMaxLength(4000);
+            e.Property(x => x.ProviderAccountId).HasMaxLength(100);
             e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
             // Un número, página o cuenta pertenece a un solo chatbot: es la clave con la que se enruta cada webhook.

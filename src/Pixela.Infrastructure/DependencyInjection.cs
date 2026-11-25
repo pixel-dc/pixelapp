@@ -73,6 +73,8 @@ public static class DependencyInjection
         services.AddSingleton<ICatalogFetcher, SupabaseCatalogFetcher>();
         services.AddSingleton<IMcpClient, McpHttpClient>();
         services.AddSingleton<IMetaGraph, MetaGraphClient>();
+        services.AddSingleton<IMetaAdmin, MetaAdminClient>();
+        services.AddScoped<MetaConnectionService>();
         services.AddSingleton<IAttachmentStore, LocalAttachmentStore>();
 
         // Siempre Claude: cada bot pone su llave. Sin llave, ChatService responde con el modo extractivo (sin modelo y sin costo).

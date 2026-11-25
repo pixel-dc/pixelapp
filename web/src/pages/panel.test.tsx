@@ -148,6 +148,45 @@ describe('agencia', () => {
     expect(api.find('PUT', '/panel/bots/b1/claude-key')[0].body).toEqual({ key: 'sk-ant-api03-prueba-abcd' })
   })
 
+  it('la pestaña Canales verifica la conexión con Meta, muestra lo que falla y lo repara sin entrar a Meta', async () => {
+    const WABA_CHECK = { id: 'waba', channel_id: 'ch1', title: 'WhatsApp: app suscrita a la cuenta', status: 'error', detail: 'La app no está suscrita a la cuenta de WhatsApp: Meta no envía ningún mensaje.', fixable: true, hint: null }
+    const TOKEN_OK = { id: 'token', channel_id: 'ch1', title: 'WhatsApp: token', status: 'ok', detail: null, fixable: false, hint: null }
+    const api = mockApi({
+      'GET /panel/me/': { body: { user: ME.agencyOwner } },
+      'GET /panel/clients': { body: { clients: [CLIENT] } },
+      'GET /panel/bots/': { body: { bots: [BOT], needing_attention: 0 } },
+      'GET /panel/bots/b1': { body: { bot: BOT } },
+      'GET /panel/bots/b1/channels': {
+        body: { channels: [{ id: 'ch1', kind: 'whatsapp', external_id: '913', display_name: 'WhatsApp', status: 'active', created_at: '2026-11-24T00:00:00Z', account_id: null }] },
+      },
+      'GET /panel/bots/b1/meta/connection': {
+        body: { connection: { webhook_url: 'https://x/meta/webhook/bt_abc', healthy: false, can_repair: true, checks: [TOKEN_OK, WABA_CHECK] } },
+      },
+      'POST /panel/bots/b1/meta/connection/repair': {
+        body: {
+          applied: [{ title: 'Suscribir la app a la cuenta de WhatsApp (WhatsApp)', success: true, message: null }],
+          connection: { webhook_url: 'https://x/meta/webhook/bt_abc', healthy: true, can_repair: false, checks: [TOKEN_OK, { ...WABA_CHECK, status: 'ok', detail: null, fixable: false }] },
+        },
+      },
+    })
+    renderApp('/chatbots/b1')
+
+    await userEvent.click(await screen.findByRole('tab', { name: 'Canales' }))
+    expect(await screen.findByText('WABA: sin indicar')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Reparar' })).not.toBeInTheDocument() // hasta verificar no se sabe nada
+
+    await userEvent.click(screen.getByRole('button', { name: 'Verificar conexión' }))
+    expect(await screen.findByText('Hay puntos por revisar.')).toBeInTheDocument()
+    expect(screen.getByText(/Meta no envía ningún mensaje/)).toBeInTheDocument()
+    expect(screen.getByText('Se puede reparar')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reparar' }))
+    expect(await screen.findByText(/Todo está en orden/)).toBeInTheDocument()
+    expect(screen.getByText(/Suscribir la app a la cuenta de WhatsApp/)).toBeInTheDocument()
+    expect(api.find('POST', '/panel/bots/b1/meta/connection/repair')).toHaveLength(1)
+    expect(screen.queryByRole('button', { name: 'Reparar' })).not.toBeInTheDocument() // ya no queda nada por reparar
+  })
+
   it('la ficha del cliente muestra sus assets con sus chatbots y arranca ilimitado', async () => {
     mockApi({
       'GET /panel/me/': { body: { user: ME.agencyOwner } },

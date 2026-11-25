@@ -183,6 +183,33 @@ export interface Channel {
   display_name: string
   status: 'active' | 'disabled' | 'tokenerror'
   created_at: string
+  /** ID del WABA (solo canales de WhatsApp). */
+  account_id?: string | null
+}
+
+export interface ConnectionCheck {
+  id: string
+  channel_id: string | null
+  title: string
+  status: 'ok' | 'warning' | 'error'
+  detail: string | null
+  /** Pixela puede corregirlo sola con «Reparar». */
+  fixable: boolean
+  /** Qué hacer a mano cuando Pixela no puede corregirlo. */
+  hint: string | null
+}
+
+export interface ConnectionReport {
+  webhook_url: string
+  healthy: boolean
+  can_repair: boolean
+  checks: ConnectionCheck[]
+}
+
+export interface AppliedFix {
+  title: string
+  success: boolean
+  message: string | null
 }
 
 export interface TranscriptAttachment {
