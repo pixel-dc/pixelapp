@@ -1015,4 +1015,22 @@ public class MetaWebhookTests(ApiFixture api)
         Assert.Equal("invalid_state", late.Error!.Code);
         Assert.Contains("24 horas", late.Error.Message);
     }
+
+    [Fact]
+    public void The_diagnostic_line_of_a_delivery_status_says_whether_the_customer_got_the_reply_without_personal_data()
+    {
+        const string body = """
+            {"object":"whatsapp_business_account","entry":[{"id":"W","changes":[{"field":"messages","value":{"messaging_product":"whatsapp",
+            "metadata":{"phone_number_id":"1"},"statuses":[
+              {"id":"wamid.SECRETO","status":"delivered","recipient_id":"573001112233"},
+              {"id":"wamid.SECRETO2","status":"failed","recipient_id":"573001112233","errors":[{"code":131049,"title":"Message undeliverable\nspam"}]}]}}]}]}
+            """;
+
+        var line = MetaWebhookParser.Describe(Encoding.UTF8.GetBytes(body));
+
+        Assert.Contains("estado(delivered)", line, StringComparison.Ordinal);
+        Assert.Contains("estado(failed 131049: Message undeliverablespam)", line, StringComparison.Ordinal);
+        Assert.DoesNotContain("573001112233", line, StringComparison.Ordinal);
+        Assert.DoesNotContain("SECRETO", line, StringComparison.Ordinal);
+    }
 }

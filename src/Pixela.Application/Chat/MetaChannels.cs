@@ -147,6 +147,10 @@ public static class MetaWebhookParser
             if (value.TryGetProperty("statuses", out var statuses) && statuses.ValueKind == JsonValueKind.Array)
             {
                 parts.Add($"estados={statuses.GetArrayLength()}");
+                foreach (var st in statuses.EnumerateArray().Take(5))
+                {
+                    parts.Add($"estado({DescribeStatus(st)})");
+                }
             }
 
             if (value.TryGetProperty("contacts", out var contacts) && contacts.ValueKind == JsonValueKind.Array)
@@ -167,6 +171,29 @@ public static class MetaWebhookParser
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Estado de entrega de un mensaje que envió el negocio: sent, delivered, read o failed y, si falló, el código y el título del error que da Meta
+    /// (por ejemplo «131049: ecosistema»). Es lo que dice si el cliente recibió la respuesta. No lleva teléfonos ni ids de mensaje.
+    /// </summary>
+    private static string DescribeStatus(JsonElement status)
+    {
+        var name = Str(status, "status");
+        var text = name is { Length: <= 20 } && name.All(c => char.IsAsciiLetter(c) || c == '_') ? name : "?";
+        if (status.ValueKind != JsonValueKind.Object || !status.TryGetProperty("errors", out var errors) || errors.ValueKind != JsonValueKind.Array)
+        {
+            return text;
+        }
+
+        var details = errors.EnumerateArray().Take(2).Select(e =>
+        {
+            var code = e.ValueKind == JsonValueKind.Object && e.TryGetProperty("code", out var c) && c.ValueKind == JsonValueKind.Number && c.TryGetInt32(out var n) ? n.ToString(System.Globalization.CultureInfo.InvariantCulture) : "?";
+            var title = e.ValueKind == JsonValueKind.Object ? Str(e, "title") : null;
+            var safeTitle = title is null ? "" : new string(title.Where(ch => !char.IsControl(ch)).Take(80).ToArray());
+            return safeTitle.Length > 0 ? $"{code}: {safeTitle}" : code;
+        });
+        return $"{text} {string.Join(" | ", details)}";
     }
 
     private static void ParseWhatsApp(JsonElement entry, List<InboundMessage> into)
