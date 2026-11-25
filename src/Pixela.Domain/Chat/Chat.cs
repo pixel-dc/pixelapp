@@ -235,6 +235,10 @@ public class ChatMessage
     public long CostMicros { get; set; }
 
     public string? Model { get; set; }
+
+    /// <summary>Id del mensaje en Meta, solo en los que escribió el negocio desde la app del teléfono (WhatsApp Business): evita guardarlos dos veces si Meta reintenta.</summary>
+    public string? ExternalId { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; }
 }
 

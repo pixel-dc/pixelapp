@@ -160,7 +160,7 @@ public class MetaConnectionTests(ApiFixture api)
         admin.Tokens[waToken] = new MetaTokenInfo(true, AppId, "SYSTEM_USER", null);
         admin.Phones[waExternal] = new MetaPhoneInfo("+57 300 0000000", "CONNECTED", new Dictionary<string, string>());
         admin.Subscribed["waba1"] = [new MetaSubscribedApp(AppId, [])];
-        admin.Subs.Add(new MetaAppSubscription("whatsapp_business_account", s.WebhookUrl, true, ["messages", "account_update"]));
+        admin.Subs.Add(new MetaAppSubscription("whatsapp_business_account", s.WebhookUrl, true, ["messages", "smb_message_echoes", "account_update"]));
         if (messenger)
         {
             var (_, page, pageToken) = s.Channels[ChannelKind.Messenger];
@@ -221,6 +221,7 @@ public class MetaConnectionTests(ApiFixture api)
         var sub = Assert.Single(admin.Subs);
         Assert.Equal(s.WebhookUrl, sub.CallbackUrl);
         Assert.Contains("messages", sub.Fields);
+        Assert.Contains("smb_message_echoes", sub.Fields);
         Assert.Contains("account_update", sub.Fields);
     }
 
@@ -357,5 +358,30 @@ public class MetaConnectionTests(ApiFixture api)
         Assert.True(connection.GetProperty("healthy").GetBoolean());
         Assert.Equal(s.WebhookUrl, connection.GetProperty("webhook_url").GetString());
         Assert.Equal("ok", connection.GetProperty("checks")[0].GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task A_WhatsApp_webhook_without_the_phone_echo_field_is_reported_and_repaired()
+    {
+        var s = await SeedAsync(kinds: ChannelKind.WhatsApp);
+        var admin = Healthy(s);
+        admin.Subs.Clear();
+        admin.Subs.Add(new MetaAppSubscription("whatsapp_business_account", s.WebhookUrl, true, ["messages", "account_update"])); // recibe mensajes, pero no lo que se escribe desde el teléfono
+        var factory = Factory(admin);
+
+        var (before, repaired) = await WithBaseUrlAsync(BaseUrl, async () =>
+        {
+            var b = (await AsAgencyAsync(factory, svc => svc.DiagnoseAsync(s.BotId, CancellationToken.None))).Value!;
+            var r = (await AsAgencyAsync(factory, svc => svc.RepairAsync(s.BotId, CancellationToken.None))).Value!;
+            return (b, r);
+        });
+
+        var check = Check(before, "app_webhook");
+        Assert.Equal("error", check.Status);
+        Assert.True(check.Fixable);
+        Assert.Contains("smb_message_echoes", check.Detail, StringComparison.Ordinal);
+        Assert.True(repaired.Report.Healthy);
+        Assert.Contains("smb_message_echoes", Assert.Single(admin.Subs).Fields);
+        Assert.Contains("account_update", Assert.Single(admin.Subs).Fields); // no se pierden los campos que ya tenía
     }
 }

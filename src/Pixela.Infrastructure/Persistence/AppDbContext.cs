@@ -308,7 +308,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, IClient
             e.Property(x => x.Role).HasMaxLength(10);
             e.Property(x => x.Content).HasMaxLength(8000);
             e.Property(x => x.Model).HasMaxLength(100);
+            e.Property(x => x.ExternalId).HasMaxLength(200);
             e.HasIndex(x => new { x.ConversationId, x.CreatedAt });
+            e.HasIndex(x => new { x.ConversationId, x.ExternalId }).IsUnique().HasFilter("\"ExternalId\" IS NOT NULL").HasDatabaseName("ux_chat_messages_external");
             e.HasQueryFilter(x => AllClients || x.ClientId == CurrentClientId);
         });
 

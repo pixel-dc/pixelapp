@@ -468,6 +468,10 @@ namespace Pixela.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("ExternalId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.Property<string>("Model")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
@@ -486,6 +490,11 @@ namespace Pixela.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ConversationId", "CreatedAt");
+
+                    b.HasIndex("ConversationId", "ExternalId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_chat_messages_external")
+                        .HasFilter("\"ExternalId\" IS NOT NULL");
 
                     b.ToTable("chat_messages", (string)null);
                 });

@@ -56,7 +56,8 @@ public static class MetaEndpoints
             {
                 logger.LogInformation("Webhook de Meta: {Shape}, mensajes leídos: {Count}", MetaWebhookParser.Describe(body), parsed.Count);
             }
-            if (parsed.Count == 0)
+            var echoes = MetaWebhookParser.ParseEchoes(body);
+            if (parsed.Count == 0 && echoes.Count == 0)
             {
                 return Results.Ok(new { accepted = 0 }); // estados de entrega, lecturas…: no hay nada que guardar ni a quién autenticar
             }
@@ -69,6 +70,11 @@ public static class MetaEndpoints
             }
 
             var accepted = await inbox.AcceptAsync(app.BotId, parsed, ct);
+            if (echoes.Count > 0)
+            {
+                await inbox.AcceptEchoesAsync(app.BotId, echoes, ct); // lo que el negocio escribió desde el teléfono
+            }
+
             return Results.Ok(new { accepted });
         });
     }

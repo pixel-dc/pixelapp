@@ -47,10 +47,95 @@ public sealed class MetaOptions
 /// <param name="Text">Null si el mensaje no era texto.</param>
 public sealed record InboundMessage(ChannelKind Kind, string ExternalChannelId, string ContactId, string? ContactName, string MessageId, string? Text, IReadOnlyList<InboundAttachment>? Attachments = null);
 
+/// <summary>
+/// Mensaje que el negocio escribió desde la app WhatsApp Business del teléfono (coexistencia). Meta lo avisa por el campo <c>smb_message_echoes</c>;
+/// los que envía Pixela por la API no generan eco.
+/// </summary>
+/// <param name="ExternalChannelId">Id del número que lo envió.</param>
+/// <param name="ContactId">Teléfono del cliente al que se le escribió.</param>
+/// <param name="Text">El texto o, si no era texto, una etiqueta como «📎 Imagen».</param>
+public sealed record OutboundEcho(ChannelKind Kind, string ExternalChannelId, string ContactId, string MessageId, string Text, DateTimeOffset? SentAt);
+
 /// <summary>Lee los webhooks de Meta (WhatsApp, Messenger e Instagram) sin depender de ninguna librería de Meta.</summary>
 public static class MetaWebhookParser
 {
     private const int MaxMessagesPerPayload = 100;
+
+    /// <summary>Los mensajes que el negocio escribió desde el teléfono (campo smb_message_echoes de WhatsApp); vacío en cualquier otro webhook.</summary>
+    public static IReadOnlyList<OutboundEcho> ParseEchoes(ReadOnlySpan<byte> body)
+    {
+        var echoes = new List<OutboundEcho>();
+        JsonDocument doc;
+        try
+        {
+            doc = JsonDocument.Parse(body.ToArray());
+        }
+        catch (JsonException)
+        {
+            return echoes;
+        }
+
+        using (doc)
+        {
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object || Str(root, "object") != "whatsapp_business_account" || !root.TryGetProperty("entry", out var entries) || entries.ValueKind != JsonValueKind.Array)
+            {
+                return echoes;
+            }
+
+            foreach (var entry in entries.EnumerateArray())
+            {
+                if (!entry.TryGetProperty("changes", out var changes) || changes.ValueKind != JsonValueKind.Array)
+                {
+                    continue;
+                }
+
+                foreach (var change in changes.EnumerateArray())
+                {
+                    if (Str(change, "field") != "smb_message_echoes" || !change.TryGetProperty("value", out var value) || value.ValueKind != JsonValueKind.Object)
+                    {
+                        continue;
+                    }
+
+                    var phoneNumberId = value.TryGetProperty("metadata", out var meta) ? Str(meta, "phone_number_id") : null;
+                    if (phoneNumberId is null || !value.TryGetProperty("message_echoes", out var list) || list.ValueKind != JsonValueKind.Array)
+                    {
+                        continue;
+                    }
+
+                    foreach (var m in list.EnumerateArray().Take(MaxMessagesPerPayload))
+                    {
+                        var to = Str(m, "to");
+                        var id = Str(m, "id");
+                        if (to is null || id is null || !to.All(char.IsAsciiDigit))
+                        {
+                            continue;
+                        }
+
+                        var type = Str(m, "type") ?? "text";
+                        var text = type == "text" && m.TryGetProperty("text", out var t) ? Str(t, "body") : null;
+                        text ??= "📎 " + EchoLabel(type);
+                        DateTimeOffset? sentAt = long.TryParse(Str(m, "timestamp"), out var unix) && unix > 0 ? DateTimeOffset.FromUnixTimeSeconds(unix) : null;
+                        echoes.Add(new OutboundEcho(ChannelKind.WhatsApp, phoneNumberId, to, id, text, sentAt));
+                    }
+                }
+            }
+        }
+
+        return echoes;
+    }
+
+    private static string EchoLabel(string type) => type switch
+    {
+        "image" => "Imagen",
+        "audio" => "Audio",
+        "video" => "Video",
+        "document" => "Documento",
+        "sticker" => "Sticker",
+        "location" => "Ubicación",
+        "contacts" => "Contacto",
+        _ => "Mensaje",
+    };
 
     /// <summary>Devuelve los mensajes entrantes de un cuerpo de webhook. Ignora estados de entrega, lecturas, ecos de lo que envió el propio negocio y todo lo que no sea un mensaje.</summary>
     public static IReadOnlyList<InboundMessage> Parse(ReadOnlySpan<byte> body)
@@ -406,8 +491,13 @@ public interface IMetaGraph
 
 /// <param name="TokenRejected">Meta dijo que el token no sirve (venció o se revocó): reintentar no ayuda.</param>
 /// <param name="Permanent">Error del destinatario o de la petición (no se arregla reintentando).</param>
-public sealed class MetaSendException(string message, bool tokenRejected = false, bool permanent = false, Exception? inner = null) : Exception(message, inner)
+public sealed class MetaSendException(string message, bool tokenRejected = false, bool permanent = false, Exception? inner = null, int? metaCode = null, int? metaSubcode = null) : Exception(message, inner)
 {
     public bool TokenRejected { get; } = tokenRejected;
     public bool Permanent { get; } = permanent;
+
+    /// <summary>Código y subcódigo del error de Meta (p. ej. 10 / 2018278: fuera de la ventana de 24 horas). Solo números: el texto del error no se guarda porque puede traer datos del contacto.</summary>
+    public int? MetaCode { get; } = metaCode;
+
+    public int? MetaSubcode { get; } = metaSubcode;
 }

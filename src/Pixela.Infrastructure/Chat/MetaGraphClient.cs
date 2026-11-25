@@ -55,7 +55,8 @@ public sealed class MetaGraphClient : IMetaGraph, IDisposable
                 }
 
                 var status = response.StatusCode;
-                var tokenRejected = status == HttpStatusCode.Unauthorized || await IsTokenErrorAsync(response, ct);
+                var (code, subcode) = await ReadErrorCodesAsync(response, ct); // el cuerpo se lee una sola vez
+                var tokenRejected = status == HttpStatusCode.Unauthorized || code == 190;
                 if (tokenRejected)
                 {
                     throw new MetaSendException("Meta rechazó el token del canal.", tokenRejected: true);
@@ -63,7 +64,7 @@ public sealed class MetaGraphClient : IMetaGraph, IDisposable
 
                 if (!IsRetryable(status))
                 {
-                    throw new MetaSendException($"Meta respondió {(int)status}.", permanent: true);
+                    throw new MetaSendException($"Meta respondió {(int)status}.", permanent: true, metaCode: code, metaSubcode: subcode);
                 }
 
                 if (attempt >= options.MaxRetries)
@@ -268,17 +269,18 @@ public sealed class MetaGraphClient : IMetaGraph, IDisposable
 
     private static bool IsRetryable(HttpStatusCode status) => status == HttpStatusCode.TooManyRequests || (int)status >= 500;
 
-    /// <summary>Meta responde 400 con el código 190 (token vencido o revocado) en la mayoría de sus APIs.</summary>
-    private static async Task<bool> IsTokenErrorAsync(HttpResponseMessage response, CancellationToken ct)
+    /// <summary>Código y subcódigo numéricos del error de Meta (el código 190 significa token vencido o revocado); nunca su texto.</summary>
+    private static async Task<(int? Code, int? Subcode)> ReadErrorCodesAsync(HttpResponseMessage response, CancellationToken ct)
     {
         try
         {
-            var json = await response.Content.ReadFromJsonAsync<JsonObject>(ct);
-            return json?["error"]?["code"]?.GetValue<int>() == 190;
+            var error = (await response.Content.ReadFromJsonAsync<JsonObject>(ct))?["error"];
+            return (error?["code"]?.GetValue<int>(), error?["error_subcode"]?.GetValue<int>());
         }
         catch (Exception ex) when (ex is JsonException or InvalidOperationException or NotSupportedException or FormatException)
         {
-            return false;
+            return (null, null);
         }
     }
+
 }

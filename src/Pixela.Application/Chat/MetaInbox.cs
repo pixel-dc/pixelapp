@@ -115,6 +115,95 @@ public sealed class MetaInboxService(IAppDbContext db, ISecretProtector secrets,
 
         return accepted;
     }
+
+    /// <summary>
+    /// Guarda lo que el negocio escribió desde la app WhatsApp Business del teléfono, como mensaje de una persona en la conversación del cliente, y la
+    /// deja en «atiende una persona» para que el bot no se cruce. Idempotente: Meta reintenta y el mismo mensaje no se guarda dos veces. Devuelve
+    /// cuántos quedaron guardados.
+    /// </summary>
+    public async Task<int> AcceptEchoesAsync(Guid botId, IReadOnlyList<OutboundEcho> echoes, CancellationToken ct)
+    {
+        var recorded = 0;
+        var now = clock.GetUtcNow();
+        foreach (var e in echoes)
+        {
+            var channel = await db.Channels.IgnoreQueryFilters().AsNoTracking()
+                .FirstOrDefaultAsync(c => c.BotId == botId && c.Kind == e.Kind && c.ExternalId == e.ExternalChannelId && c.Status == ChannelStatus.Active, ct);
+            if (channel is null)
+            {
+                continue; // un webhook firmado con la app de un bot no puede escribir en los canales de otro
+            }
+
+            var contactId = e.ContactId.Length > 160 ? e.ContactId[..160] : e.ContactId;
+            var text = e.Text.Length > 4000 ? e.Text[..4000] : e.Text;
+            var externalId = e.MessageId.Length > 200 ? e.MessageId[..200] : e.MessageId;
+            var sentAt = e.SentAt is { } at && at <= now ? at : now;
+
+            var conversation = await db.Conversations.IgnoreQueryFilters()
+                .Where(c => c.ChannelId == channel.Id && c.ContactId == contactId).OrderByDescending(c => c.LastMessageAt).FirstOrDefaultAsync(ct);
+            var isNew = conversation is null;
+            if (conversation is not null)
+            {
+                if (await db.ChatMessages.IgnoreQueryFilters().AnyAsync(m => m.ConversationId == conversation.Id && m.ExternalId == externalId, ct))
+                {
+                    continue; // reintento de Meta: ya lo tenemos
+                }
+
+                // Lo que Pixela envía por la API no debería generar eco; por si Meta lo hiciera, no se duplica lo que ya quedó registrado.
+                var since = now.AddMinutes(-5);
+                if (await db.ChatMessages.IgnoreQueryFilters().AnyAsync(m => m.ConversationId == conversation.Id && (m.Role == "assistant" || m.Role == "agent") && m.Content == text && m.CreatedAt >= since, ct))
+                {
+                    continue;
+                }
+            }
+            else
+            {
+                conversation = new Conversation
+                {
+                    Id = Guid.CreateVersion7(),
+                    ClientId = channel.ClientId,
+                    BotId = botId,
+                    ChannelId = channel.Id,
+                    ContactId = contactId,
+                    CreatedAt = sentAt,
+                };
+                db.Conversations.Add(conversation);
+            }
+
+            var message = new ChatMessage
+            {
+                Id = Guid.CreateVersion7(),
+                ClientId = channel.ClientId,
+                ConversationId = conversation.Id,
+                Role = "agent",
+                Content = text,
+                ExternalId = externalId,
+                CreatedAt = sentAt,
+            };
+            db.ChatMessages.Add(message);
+            conversation.MessageCount++;
+            conversation.LastMessageAt = sentAt > conversation.LastMessageAt ? sentAt : conversation.LastMessageAt;
+            conversation.HumanActive = true;
+            conversation.HumanActivityAt = now;
+            conversation.NeedsAttention = false;
+            try
+            {
+                await db.SaveChangesAsync(ct);
+                recorded++;
+            }
+            catch (DbUpdateException)
+            {
+                // Dos entregas simultáneas del mismo mensaje: la otra ganó. Se descarta esta.
+                db.ChatMessages.Remove(message);
+                if (isNew)
+                {
+                    db.Conversations.Remove(conversation);
+                }
+            }
+        }
+
+        return recorded;
+    }
 }
 
 /// <summary>
@@ -398,7 +487,8 @@ public sealed class MetaInboxProcessor(
         }
         catch (MetaSendException ex) when (ex.Permanent)
         {
-            return await FinishAsync(inbound, InboundStatus.Failed, "Meta rechazó el envío", InboundOutcome.Failed, ct);
+            var codes = ex.MetaCode is { } c ? $" (código {c}{(ex.MetaSubcode is { } sc ? $", subcódigo {sc}" : "")})" : "";
+            return await FinishAsync(inbound, InboundStatus.Failed, "Meta rechazó el envío" + codes, InboundOutcome.Failed, ct);
         }
         catch (MetaSendException)
         {

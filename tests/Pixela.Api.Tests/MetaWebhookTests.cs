@@ -1134,4 +1134,110 @@ public class MetaWebhookTests(ApiFixture api)
         Assert.Empty(graph.NameLookups);
         Assert.Equal("Ana", Assert.Single(await api.WithDbAsync(db => db.Conversations.Where(c => c.ChannelId == s.ChannelId).ToListAsync())).ContactName);
     }
+
+    /// <summary>Webhook de coexistencia: lo que el negocio escribió desde la app WhatsApp Business del teléfono.</summary>
+    private static string EchoPayload(Seeded s, string contact, string messageId, string? text, string type = "text")
+    {
+        var body = text is null ? "" : $",\"text\":{{\"body\":\"{text}\"}}";
+        var json = "{\"object\":\"whatsapp_business_account\",\"entry\":[{\"id\":\"W\",\"changes\":[{\"field\":\"smb_message_echoes\",\"value\":{\"messaging_product\":\"whatsapp\"," +
+            $"\"metadata\":{{\"display_phone_number\":\"573000000000\",\"phone_number_id\":\"{s.ExternalId}\"}},\"message_echoes\":[{{\"from\":\"573000000000\",\"to\":\"{contact}\",\"id\":\"{messageId}\",\"timestamp\":\"1700000000\",\"type\":\"{type}\"{body}}}]}}}}]}}]}}";
+        BotOfPayload[json] = s.PublicKey;
+        return json;
+    }
+
+    [Fact]
+    public async Task What_the_business_types_on_the_phone_is_saved_as_a_person_message_and_the_bot_steps_back()
+    {
+        var s = await SeedAsync();
+        var graph = new FakeGraph();
+        using var factory = Factory(graph);
+        using var client = factory.CreateClient();
+
+        // El cliente escribe y el bot responde; después una persona del negocio escribe desde el teléfono.
+        await PostAsync(client, Payload(s, "573001112233", "m1", "¿Horario?"));
+        await DrainAsync(factory, s.ChannelId);
+        Assert.Single(graph.Sent);
+        var echo = await PostAsync(client, EchoPayload(s, "573001112233", "wamid.eco1", "Te escribo desde el teléfono"));
+        Assert.Equal(HttpStatusCode.OK, echo.StatusCode);
+
+        var conversation = Assert.Single(await api.WithDbAsync(db => db.Conversations.Where(c => c.ChannelId == s.ChannelId).ToListAsync()));
+        Assert.True(conversation.HumanActive);
+        Assert.False(conversation.NeedsAttention);
+        var messages = await api.WithDbAsync(db => db.ChatMessages.Where(m => m.ConversationId == conversation.Id).OrderBy(m => m.CreatedAt).ToListAsync());
+        var agent = Assert.Single(messages, m => m.Role == "agent");
+        Assert.Equal("Te escribo desde el teléfono", agent.Content);
+        Assert.Equal("wamid.eco1", agent.ExternalId);
+
+        // Con una persona atendiendo, el siguiente mensaje del cliente ya no lo contesta el bot.
+        await PostAsync(client, Payload(s, "573001112233", "m2", "¿Y el domingo?"));
+        var outcomes = await DrainAsync(factory, s.ChannelId);
+        Assert.Equal([InboundOutcome.Dropped], outcomes);
+        Assert.Single(graph.Sent);
+    }
+
+    [Fact]
+    public async Task An_echo_is_idempotent_when_Meta_retries_it()
+    {
+        var s = await SeedAsync();
+        using var factory = Factory(new FakeGraph());
+        using var client = factory.CreateClient();
+        var payload = EchoPayload(s, "573001112233", "wamid.reintento", "Hola desde el teléfono");
+
+        await PostAsync(client, payload);
+        await PostAsync(client, payload);
+
+        var conversation = Assert.Single(await api.WithDbAsync(db => db.Conversations.Where(c => c.ChannelId == s.ChannelId).ToListAsync()));
+        Assert.Single(await api.WithDbAsync(db => db.ChatMessages.Where(m => m.ConversationId == conversation.Id).ToListAsync()));
+        Assert.Equal(1, conversation.MessageCount);
+    }
+
+    [Fact]
+    public async Task An_echo_for_a_contact_without_a_conversation_opens_one_attended_by_a_person()
+    {
+        var s = await SeedAsync();
+        using var factory = Factory(new FakeGraph());
+        using var client = factory.CreateClient();
+
+        await PostAsync(client, EchoPayload(s, "573009990000", "wamid.nuevo", null, type: "image"));
+
+        var conversation = Assert.Single(await api.WithDbAsync(db => db.Conversations.Where(c => c.ChannelId == s.ChannelId).ToListAsync()));
+        Assert.Equal("573009990000", conversation.ContactId);
+        Assert.True(conversation.HumanActive);
+        Assert.Equal("📎 Imagen", Assert.Single(await api.WithDbAsync(db => db.ChatMessages.Where(m => m.ConversationId == conversation.Id).ToListAsync())).Content);
+    }
+
+    [Fact]
+    public async Task An_echo_cannot_write_into_another_bots_channel_or_pass_with_a_bad_signature()
+    {
+        var mine = await SeedAsync();
+        var other = await SeedAsync();
+        using var factory = Factory(new FakeGraph());
+        using var client = factory.CreateClient();
+
+        // Firmado con la app del bot «mine» pero con el número del canal de «other»: no se guarda nada.
+        var crossed = EchoPayload(other, "573001112233", "wamid.cruzado", "intruso");
+        Assert.Equal(HttpStatusCode.OK, (await PostAsync(client, crossed, botKey: mine.PublicKey)).StatusCode);
+        Assert.Empty(await api.WithDbAsync(db => db.Conversations.Where(c => c.ChannelId == other.ChannelId).ToListAsync()));
+
+        // Firma inválida: se rechaza.
+        var forged = EchoPayload(mine, "573001112233", "wamid.falso", "falso");
+        Assert.Equal(HttpStatusCode.Unauthorized, (await PostAsync(client, forged, signature: "sha256=00")).StatusCode);
+        Assert.Empty(await api.WithDbAsync(db => db.Conversations.Where(c => c.ChannelId == mine.ChannelId).ToListAsync()));
+    }
+
+    [Fact]
+    public void The_echo_parser_reads_only_the_phone_echo_field_and_ignores_everything_else()
+    {
+        var s = new Seeded(Guid.Empty, Guid.Empty, Guid.Empty, "ph1", ChannelKind.WhatsApp, "bt_x", "v");
+        var echoes = MetaWebhookParser.ParseEchoes(Encoding.UTF8.GetBytes(EchoPayload(s, "573001112233", "wamid.1", "Hola")));
+        var echo = Assert.Single(echoes);
+        Assert.Equal(("ph1", "573001112233", "wamid.1", "Hola"), (echo.ExternalChannelId, echo.ContactId, echo.MessageId, echo.Text));
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1700000000), echo.SentAt);
+
+        // Un mensaje normal de un cliente no es un eco, y un eco no es un mensaje entrante.
+        var inbound = Payload(s, "573001112233", "m1", "Hola");
+        Assert.Empty(MetaWebhookParser.ParseEchoes(Encoding.UTF8.GetBytes(inbound)));
+        Assert.Empty(MetaWebhookParser.Parse(Encoding.UTF8.GetBytes(EchoPayload(s, "573001112233", "wamid.2", "Hola"))));
+        Assert.Empty(MetaWebhookParser.ParseEchoes("no es json"u8));
+    }
 }

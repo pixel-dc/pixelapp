@@ -178,4 +178,29 @@ public class MetaGraphClientTests
         Assert.False(ex.Permanent);
         Assert.Equal(2, handler.Received.Count);
     }
+
+    [Fact]
+    public async Task A_rejected_send_keeps_the_Meta_error_code_and_subcode_but_never_its_text()
+    {
+        var handler = new FakeHandler(_ => Json(HttpStatusCode.BadRequest, """{"error":{"message":"(#10) Esta persona Ana Pérez no está disponible","code":10,"error_subcode":2018278}}"""));
+        using var client = Client(handler);
+
+        var ex = await Assert.ThrowsAsync<MetaSendException>(() => client.SendTextAsync(ChannelKind.Messenger, "P", "tok", "5001", "hola", CancellationToken.None));
+
+        Assert.True(ex.Permanent);
+        Assert.Equal((10, 2018278), (ex.MetaCode, ex.MetaSubcode));
+        Assert.DoesNotContain("Ana", ex.Message, StringComparison.Ordinal); // el texto de Meta puede traer datos del contacto
+    }
+
+    [Fact]
+    public async Task A_rejection_without_a_readable_body_still_fails_cleanly()
+    {
+        var handler = new FakeHandler(_ => Json(HttpStatusCode.BadRequest, "no es json"));
+        using var client = Client(handler);
+
+        var ex = await Assert.ThrowsAsync<MetaSendException>(() => client.SendTextAsync(ChannelKind.Messenger, "P", "tok", "5001", "hola", CancellationToken.None));
+
+        Assert.True(ex.Permanent);
+        Assert.Null(ex.MetaCode);
+    }
 }

@@ -29,6 +29,7 @@ public sealed class MetaConnectionService(IAppDbContext db, ISecretProtector sec
     private const string Warning = "warning";
     private const string Error = "error";
     private static readonly string[] MessageFields = ["messages"];
+    private static readonly string[] WhatsAppFields = ["messages", "smb_message_echoes"];
     private static readonly string[] PageFields = ["messages", "messaging_postbacks"];
 
     /// <summary>Una comprobación y, si Pixela puede corregirla, la acción que lo hace (devuelve un mensaje de error o null si salió bien).</summary>
@@ -166,10 +167,12 @@ public sealed class MetaConnectionService(IAppDbContext db, ISecretProtector sec
             }
 
             var since = clock.GetUtcNow().AddHours(-24);
-            var failed = await db.ChannelInbounds.AsNoTracking().CountAsync(i => i.ChannelId == ch.Id && i.Status == InboundStatus.Failed && i.CreatedAt >= since, ct);
+            var failures = db.ChannelInbounds.AsNoTracking().Where(i => i.ChannelId == ch.Id && i.Status == InboundStatus.Failed && i.CreatedAt >= since);
+            var failed = await failures.CountAsync(ct);
             if (failed > 0)
             {
-                probes.Add(new Probe(new ConnectionCheck("delivery", ch.Id, $"{Name(ch)}: envíos", Warning, $"{failed} mensaje(s) no se pudieron enviar en las últimas 24 horas.", false,
+                var last = await failures.OrderByDescending(i => i.CreatedAt).Select(i => i.LastError).FirstOrDefaultAsync(ct);
+                probes.Add(new Probe(new ConnectionCheck("delivery", ch.Id, $"{Name(ch)}: envíos", Warning, $"{failed} mensaje(s) no se pudieron enviar en las últimas 24 horas." + (string.IsNullOrWhiteSpace(last) ? "" : $" Último motivo: {last}."), false,
                     "Si es Messenger, normalmente es un token que no es de la página; si es WhatsApp, revisa el token del canal.")));
             }
         }
@@ -195,7 +198,8 @@ public sealed class MetaConnectionService(IAppDbContext db, ISecretProtector sec
             var obj = MetaObject(kind);
             var title = $"Webhook de la app: {Label(kind)}";
             var sub = subs.FirstOrDefault(x => x.Topic == obj);
-            if (sub is { Active: true } && string.Equals(sub.CallbackUrl, webhookUrl, StringComparison.Ordinal) && sub.Fields.Contains("messages"))
+            var required = kind == ChannelKind.WhatsApp ? WhatsAppFields : MessageFields;
+            if (sub is { Active: true } && string.Equals(sub.CallbackUrl, webhookUrl, StringComparison.Ordinal) && required.All(sub.Fields.Contains))
             {
                 probes.Add(Pass("app_webhook", null, title, Ok, null, null));
                 continue;
@@ -204,8 +208,9 @@ public sealed class MetaConnectionService(IAppDbContext db, ISecretProtector sec
             var detail = sub is null ? "La app no tiene webhook para este tipo de canal."
                 : !string.Equals(sub.CallbackUrl, webhookUrl, StringComparison.Ordinal) ? "El webhook apunta a otra dirección, así que Meta no entrega los mensajes a este bot."
                 : !sub.Fields.Contains("messages") ? "El webhook no está suscrito al campo «messages»."
+                : !required.All(sub.Fields.Contains) ? "El webhook no está suscrito a «smb_message_echoes»: lo que escribes desde el teléfono (WhatsApp Business) no llega a Pixela."
                 : "El webhook está inactivo.";
-            var fields = (sub?.Fields ?? []).Union(MessageFields).ToList();
+            var fields = (sub?.Fields ?? []).Union(required).ToList();
             probes.Add(new Probe(
                 new ConnectionCheck("app_webhook", null, title, Error, detail, true, null),
                 $"Fijar el webhook de la app ({Label(kind)})",
