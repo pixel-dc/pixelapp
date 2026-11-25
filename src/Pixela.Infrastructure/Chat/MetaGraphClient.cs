@@ -185,6 +185,53 @@ public sealed class MetaGraphClient : IMetaGraph, IDisposable
         }
     }
 
+    public async Task<string?> GetContactNameAsync(ChannelKind kind, string accessToken, string contactId, CancellationToken ct)
+    {
+        // WhatsApp ya trae el nombre en el webhook. El id de Messenger/Instagram es numérico: nada más entra en la ruta.
+        if (kind == ChannelKind.WhatsApp || contactId.Length is 0 or > 100 || !contactId.All(char.IsAsciiDigit))
+        {
+            return null;
+        }
+
+        // Messenger da «name»; algunas apps solo permiten first_name/last_name; Instagram da «name» y «username».
+        foreach (var fields in new[] { "name", "first_name,last_name", "username" })
+        {
+            try
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(new Uri(options.BaseUrl), $"/{options.GraphVersion}/{contactId}?fields={fields}"));
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                using var response = await http.SendAsync(request, ct);
+                if (!response.IsSuccessStatusCode)
+                {
+                    continue; // p. ej. el campo no está permitido: se prueba el siguiente
+                }
+
+                var json = await response.Content.ReadFromJsonAsync<JsonObject>(ct);
+                var name = json?["name"]?.GetValue<string>();
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    name = string.Join(' ', new[] { json?["first_name"]?.GetValue<string>(), json?["last_name"]?.GetValue<string>() }.Where(p => !string.IsNullOrWhiteSpace(p)));
+                }
+
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    name = json?["username"]?.GetValue<string>();
+                }
+
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    return new string(name.Trim().Where(ch => !char.IsControl(ch)).Take(120).ToArray());
+                }
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or InvalidOperationException or FormatException && !ct.IsCancellationRequested)
+            {
+                return null; // sin red o respuesta rara: se queda con el id
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>Un teléfono son solo dígitos; todo lo demás (p. ej. «CO.1349…») es el identificador por negocio de una persona que ocultó su número.</summary>
     internal static bool IsPhone(string contactId) => contactId.Length > 0 && contactId.All(char.IsAsciiDigit);
 

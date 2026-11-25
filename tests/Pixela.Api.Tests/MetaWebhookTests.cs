@@ -37,6 +37,16 @@ public class MetaWebhookTests(ApiFixture api)
         public Exception? ImageFailure { get; set; }
         public Func<InboundAttachment, MediaDownload> Download { get; set; } = _ => new MediaDownload([0xFF, 0xD8, 0xFF, 1, 2, 3], "image/jpeg");
 
+        /// <summary>Nombre que Meta daría de quien escribe (null = no lo da); anota cada consulta para comprobar que no se repiten.</summary>
+        public Func<string, string?> ProfileName { get; set; } = _ => null;
+        public List<(ChannelKind Kind, string Token, string ContactId)> NameLookups { get; } = [];
+
+        public Task<string?> GetContactNameAsync(ChannelKind kind, string accessToken, string contactId, CancellationToken ct)
+        {
+            NameLookups.Add((kind, accessToken, contactId));
+            return Task.FromResult(ProfileName(contactId));
+        }
+
         public Task<MediaDownload> DownloadMediaAsync(ChannelKind kind, string accessToken, InboundAttachment attachment, long maxBytes, CancellationToken ct)
         {
             Downloads.Add(attachment);
@@ -1032,5 +1042,96 @@ public class MetaWebhookTests(ApiFixture api)
         Assert.Contains("estado(failed 131049: Message undeliverablespam)", line, StringComparison.Ordinal);
         Assert.DoesNotContain("573001112233", line, StringComparison.Ordinal);
         Assert.DoesNotContain("SECRETO", line, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_Messenger_contact_gets_the_profile_name_once_and_it_is_reused()
+    {
+        var s = await SeedAsync(ChannelKind.Messenger, token: "token-de-la-pagina");
+        var graph = new FakeGraph { ProfileName = _ => "Ana Pérez" };
+        using var factory = Factory(graph);
+        using var client = factory.CreateClient();
+
+        await PostAsync(client, Payload(s, "5001", "m1", "¿Horario?"));
+        await DrainAsync(factory, s.ChannelId);
+        await PostAsync(client, Payload(s, "5001", "m2", "¿Horario?"));
+        await DrainAsync(factory, s.ChannelId);
+
+        var conversation = Assert.Single(await api.WithDbAsync(db => db.Conversations.Where(c => c.ChannelId == s.ChannelId).ToListAsync()));
+        Assert.Equal("Ana Pérez", conversation.ContactName);
+        var lookup = Assert.Single(graph.NameLookups); // la segunda vez se reutiliza el nombre guardado
+        Assert.Equal(("token-de-la-pagina", "5001"), (lookup.Token, lookup.ContactId));
+        Assert.Equal(2, graph.Sent.Count);
+    }
+
+    [Fact]
+    public async Task If_Meta_gives_no_name_the_reply_still_goes_out_and_the_contact_keeps_the_id()
+    {
+        var s = await SeedAsync(ChannelKind.Messenger);
+        var graph = new FakeGraph { ProfileName = _ => null };
+        using var factory = Factory(graph);
+        using var client = factory.CreateClient();
+
+        await PostAsync(client, Payload(s, "5002", "m1", "¿Horario?"));
+        await DrainAsync(factory, s.ChannelId);
+
+        Assert.Single(graph.Sent);
+        var conversation = Assert.Single(await api.WithDbAsync(db => db.Conversations.Where(c => c.ChannelId == s.ChannelId).ToListAsync()));
+        Assert.Null(conversation.ContactName);
+    }
+
+    [Fact]
+    public async Task A_name_lookup_that_throws_never_blocks_the_reply()
+    {
+        var s = await SeedAsync(ChannelKind.Messenger);
+        var graph = new FakeGraph { ProfileName = _ => throw new MetaSendException("Meta no respondió.") };
+        using var factory = Factory(graph);
+        using var client = factory.CreateClient();
+
+        await PostAsync(client, Payload(s, "5003", "m1", "¿Horario?"));
+        var outcomes = await DrainAsync(factory, s.ChannelId);
+
+        Assert.Equal([InboundOutcome.Done], outcomes);
+        Assert.Single(graph.Sent);
+    }
+
+    [Fact]
+    public async Task A_Messenger_conversation_that_had_no_name_gets_it_when_the_contact_writes_again()
+    {
+        var s = await SeedAsync(ChannelKind.Messenger);
+        var first = new FakeGraph { ProfileName = _ => null };
+        using (var factory = Factory(first))
+        {
+            using var client = factory.CreateClient();
+            await PostAsync(client, Payload(s, "5004", "m1", "¿Horario?"));
+            await DrainAsync(factory, s.ChannelId);
+        }
+
+        Assert.Null(Assert.Single(await api.WithDbAsync(db => db.Conversations.Where(c => c.ChannelId == s.ChannelId).ToListAsync())).ContactName);
+
+        var second = new FakeGraph { ProfileName = _ => "Luis Gómez" };
+        using (var factory = Factory(second))
+        {
+            using var client = factory.CreateClient();
+            await PostAsync(client, Payload(s, "5004", "m2", "¿Horario?"));
+            await DrainAsync(factory, s.ChannelId);
+        }
+
+        Assert.Equal("Luis Gómez", Assert.Single(await api.WithDbAsync(db => db.Conversations.Where(c => c.ChannelId == s.ChannelId).ToListAsync())).ContactName);
+    }
+
+    [Fact]
+    public async Task WhatsApp_never_asks_Meta_for_a_name_because_the_webhook_already_brings_it()
+    {
+        var s = await SeedAsync(ChannelKind.WhatsApp);
+        var graph = new FakeGraph { ProfileName = _ => "No debería pedirse" };
+        using var factory = Factory(graph);
+        using var client = factory.CreateClient();
+
+        await PostAsync(client, Payload(s, "573001112233", "m1", "¿Horario?"));
+        await DrainAsync(factory, s.ChannelId);
+
+        Assert.Empty(graph.NameLookups);
+        Assert.Equal("Ana", Assert.Single(await api.WithDbAsync(db => db.Conversations.Where(c => c.ChannelId == s.ChannelId).ToListAsync())).ContactName);
     }
 }

@@ -184,8 +184,53 @@ public sealed class MetaInboxProcessor(
         return await SendAsync(inbound, channel, ct);
     }
 
+    /// <summary>
+    /// Messenger e Instagram solo traen el id de quien escribe. Se reutiliza el nombre ya guardado de ese contacto y, si no hay, se pide una vez a Meta.
+    /// Es un adorno: si Meta no lo da, la conversación sigue mostrando el id. Las conversaciones anteriores sin nombre también lo reciben.
+    /// </summary>
+    private async Task ResolveContactNameAsync(ChannelInbound inbound, Channel channel, CancellationToken ct)
+    {
+        if (!string.IsNullOrWhiteSpace(inbound.ContactName) || channel.Kind == ChannelKind.WhatsApp)
+        {
+            return;
+        }
+
+        var known = await db.Conversations.IgnoreQueryFilters().AsNoTracking()
+            .Where(c => c.ChannelId == channel.Id && c.ContactId == inbound.ContactId && c.ContactName != null && c.ContactName != "")
+            .Select(c => c.ContactName).FirstOrDefaultAsync(ct);
+        var name = known;
+        if (name is null)
+        {
+            try
+            {
+                name = await graph.GetContactNameAsync(channel.Kind, secrets.Unprotect(channel.AccessTokenEncrypted), inbound.ContactId, ct);
+            }
+            catch (Exception ex) when (ex is System.Security.Cryptography.CryptographicException or FormatException or MetaSendException)
+            {
+                return;
+            }
+        }
+
+        if (name is null)
+        {
+            return;
+        }
+
+        inbound.ContactName = name.Length > 120 ? name[..120] : name;
+        if (known is null)
+        {
+            foreach (var c in await db.Conversations.IgnoreQueryFilters().Where(c => c.ChannelId == channel.Id && c.ContactId == inbound.ContactId && (c.ContactName == null || c.ContactName == "")).ToListAsync(ct))
+            {
+                c.ContactName = inbound.ContactName;
+            }
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
     private async Task<(string? Reply, InboundOutcome? Outcome)> BuildReplyAsync(ChannelInbound inbound, Channel channel, CancellationToken ct)
     {
+        await ResolveContactNameAsync(inbound, channel, ct);
         var contact = new ChannelContact(channel.Id, inbound.ContactId, inbound.ContactName, channel.Kind);
         var incoming = ReadAttachments(inbound.AttachmentsJson);
         if (incoming.Count > 0)

@@ -396,6 +396,12 @@ public interface IMetaGraph
     /// <summary>Descarga un archivo que envió el contacto. Solo habla con servidores de Meta y corta si pasa de <paramref name="maxBytes"/>.</summary>
     /// <exception cref="MetaSendException">No se pudo descargar (caducó, es muy grande o no es una dirección de Meta).</exception>
     Task<MediaDownload> DownloadMediaAsync(ChannelKind kind, string accessToken, InboundAttachment attachment, long maxBytes, CancellationToken ct);
+
+    /// <summary>
+    /// Nombre público del perfil de quien escribe por Messenger o Instagram (el webhook solo trae su id). Un intento, sin reintentos: es un adorno y
+    /// nunca debe retrasar la respuesta. Null si Meta no lo da (falta de permiso, perfil privado…); nunca lanza por eso.
+    /// </summary>
+    Task<string?> GetContactNameAsync(ChannelKind kind, string accessToken, string contactId, CancellationToken ct);
 }
 
 /// <param name="TokenRejected">Meta dijo que el token no sirve (venció o se revocó): reintentar no ayuda.</param>
