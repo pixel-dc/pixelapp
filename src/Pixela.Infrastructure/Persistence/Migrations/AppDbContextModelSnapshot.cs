@@ -140,6 +140,9 @@ namespace Pixela.Infrastructure.Persistence.Migrations
                     b.Property<double?>("Longitude")
                         .HasColumnType("double precision");
 
+                    b.Property<int?>("MemoryDays")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Model")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
@@ -169,6 +172,9 @@ namespace Pixela.Infrastructure.Persistence.Migrations
                     b.Property<string>("QuickGreeting")
                         .HasMaxLength(600)
                         .HasColumnType("character varying(600)");
+
+                    b.Property<bool>("RememberPastChats")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("SystemPrompt")
                         .HasMaxLength(8000)

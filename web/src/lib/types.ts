@@ -95,6 +95,10 @@ export interface Bot {
   handoff_message?: string | null
   /** Horas sin actividad de una persona tras las que el bot retoma la conversación; 0 = solo se devuelve a mano. */
   handoff_return_hours?: number
+  /** El bot recuerda lo hablado en conversaciones anteriores con el mismo contacto de un canal. */
+  remember_past_chats?: boolean
+  /** Días hacia atrás que recuerda; null = el plazo de conservación de chats de la agencia (que además es su tope). */
+  memory_days?: number | null
   /** Cambia con cada icono nuevo; null = sin icono. */
   icon_version?: number | null
   call_to_action?: string | null

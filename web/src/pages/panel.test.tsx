@@ -224,6 +224,28 @@ describe('agencia', () => {
     expect(screen.getByText(/pasaron más de 24 horas/)).toBeInTheDocument()
   })
 
+  it('la configuración del chatbot activa la memoria entre conversaciones y guarda cuántos días recuerda', async () => {
+    const api = mockApi({
+      'GET /panel/me/': { body: { user: ME.agencyOwner } },
+      'GET /panel/clients': { body: { clients: [CLIENT] } },
+      'GET /panel/bots/': { body: { bots: [BOT], needing_attention: 0 } },
+      'GET /panel/bots/b1': { body: { bot: BOT } },
+      'PATCH /panel/bots/b1': { body: { bot: { ...BOT, remember_past_chats: true, memory_days: 45 } } },
+    })
+    renderApp('/chatbots/b1')
+
+    const remember = await screen.findByRole('checkbox', { name: /Recordar conversaciones anteriores/ })
+    expect(remember).not.toBeChecked() // apagado por defecto
+    expect(screen.queryByLabelText(/Recordar hasta/)).not.toBeInTheDocument()
+
+    await userEvent.click(remember)
+    await userEvent.type(await screen.findByLabelText(/Recordar hasta/), '45')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    await waitFor(() => expect(api.find('PATCH', '/panel/bots/b1')).toHaveLength(1))
+    expect(api.find('PATCH', '/panel/bots/b1')[0].body).toMatchObject({ remember_past_chats: true, memory_days: 45 })
+  })
+
   it('la ficha del cliente muestra sus assets con sus chatbots y arranca ilimitado', async () => {
     mockApi({
       'GET /panel/me/': { body: { user: ME.agencyOwner } },

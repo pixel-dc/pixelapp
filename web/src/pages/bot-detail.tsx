@@ -100,6 +100,9 @@ function ConfigForm({ bot }: { bot: Bot }) {
   const [farewell, setFarewell] = useState(bot.farewell ?? '')
   const [handoff, setHandoff] = useState(bot.handoff_message ?? '')
   const [returnHours, setReturnHours] = useState(String(bot.handoff_return_hours ?? 2))
+  const [remember, setRemember] = useState(bot.remember_past_chats ?? false)
+  // Vacío = el mismo plazo que la agencia conserva los chats (0 en la API).
+  const [memoryDays, setMemoryDays] = useState(bot.memory_days ? String(bot.memory_days) : '')
   const [cta, setCta] = useState(bot.call_to_action ?? '')
   const [address, setAddress] = useState(bot.address ?? '')
   const [coordinates, setCoordinates] = useState(bot.coordinates ?? '')
@@ -120,6 +123,8 @@ function ConfigForm({ bot }: { bot: Bot }) {
         farewell,
         handoff_message: handoff,
         handoff_return_hours: Math.min(24, Math.max(0, Number.parseInt(returnHours, 10) || 0)),
+        remember_past_chats: remember,
+        memory_days: Math.min(365, Math.max(0, Number.parseInt(memoryDays, 10) || 0)),
         call_to_action: cta,
         address,
         coordinates,
@@ -240,6 +245,24 @@ function ConfigForm({ bot }: { bot: Bot }) {
           <p className="text-xs text-muted-foreground">
             Si nadie del equipo interviene en ese tiempo y el contacto vuelve a escribir, el bot responde de nuevo. Con 0 solo atiende otra vez cuando alguien pulsa «Devolver al bot».
           </p>
+        </div>
+        <div className="space-y-2 lg:col-span-2">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+            Recordar conversaciones anteriores del contacto
+          </label>
+          <p className="text-xs text-muted-foreground">
+            En WhatsApp, Messenger e Instagram, el bot recibe un extracto de lo último que habló con el mismo contacto, para darle continuidad y no volver a preguntarle lo que ya contó. Lo recordado es solo contexto: precios, horarios y políticas siempre salen de la información actual del negocio. Está apagado por defecto porque cambia las respuestas y usa los mensajes guardados del contacto.
+          </p>
+          {remember && (
+            <div className="space-y-1.5">
+              <Label htmlFor="bot-memory-days">Recordar hasta (días atrás)</Label>
+              <Input id="bot-memory-days" type="number" min={0} max={365} inputMode="numeric" value={memoryDays} onChange={(e) => setMemoryDays(e.target.value)} placeholder="Igual que la conservación" className="w-44" />
+              <p className="text-xs text-muted-foreground">
+                Vacío = el mismo plazo que la agencia conserva los chats. Nunca recuerda más que eso: pasado ese plazo los mensajes ya no existen.
+              </p>
+            </div>
+          )}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="bot-cta">Llamado a la acción</Label>

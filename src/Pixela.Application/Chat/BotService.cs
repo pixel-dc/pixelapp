@@ -23,13 +23,15 @@ public sealed record BotRequest(
     string? Address = null,
     string? Coordinates = null,
     [property: System.Text.Json.Serialization.JsonPropertyName("whatsapp_number")] string? WhatsAppNumber = null,
-    int? HandoffReturnHours = null);
+    int? HandoffReturnHours = null,
+    bool? RememberPastChats = null,
+    int? MemoryDays = null);
 
 public sealed record BotView(
     Guid Id, string PublicKey, string Name, string? SystemPrompt, string? Tone, string? WelcomeMessage, string? Color,
     string? PrivacyUrl, IReadOnlyList<string> AllowedOrigins, bool IsActive, DateTimeOffset CreatedAt,
     string? Farewell = null, string? HandoffMessage = null, string? CallToAction = null, string? Address = null, string? Coordinates = null, [property: System.Text.Json.Serialization.JsonPropertyName("whatsapp_number")] string? WhatsAppNumber = null,
-    int HandoffReturnHours = ChatService.DefaultHandoffReturnHours, long? IconVersion = null, Guid? AssetId = null);
+    int HandoffReturnHours = ChatService.DefaultHandoffReturnHours, long? IconVersion = null, Guid? AssetId = null, bool RememberPastChats = false, int? MemoryDays = null);
 
 /// <param name="NeedingAttention">Conversaciones de canales de Meta que esperan a una persona del negocio (el bot no supo, o el contacto escribió mientras lo atendían).</param>
 public sealed record BotList(IReadOnlyList<BotView> Bots, int NeedingAttention = 0);
@@ -212,6 +214,23 @@ public sealed partial class BotService(IAppDbContext db, ISecretProtector secret
             }
         }
 
+        if (r.RememberPastChats is { } remember)
+        {
+            bot.RememberPastChats = remember;
+        }
+
+        if (r.MemoryDays is { } memoryDays)
+        {
+            if (memoryDays is < 0 or > 365)
+            {
+                fields["memory_days"] = "Entre 1 y 365 días (0 = el mismo plazo que la agencia conserva los chats).";
+            }
+            else
+            {
+                bot.MemoryDays = memoryDays == 0 ? null : memoryDays;
+            }
+        }
+
         if (r.Coordinates is not null)
         {
             var raw = r.Coordinates.Trim();
@@ -358,5 +377,5 @@ public sealed partial class BotService(IAppDbContext db, ISecretProtector secret
 
     private static BotView ToView(Bot b) =>
         new(b.Id, b.PublicKey, b.Name, b.SystemPrompt, b.Tone, b.WelcomeMessage, b.Color, b.PrivacyUrl, b.AllowedOrigins, b.IsActive, b.CreatedAt,
-            b.Farewell, b.HandoffMessage, b.CallToAction, b.Address, BotProfile.CoordinatesText(b), b.WhatsAppNumber, b.HandoffReturnHours ?? ChatService.DefaultHandoffReturnHours, b.IconUpdatedAt?.UtcTicks, b.AssetId);
+            b.Farewell, b.HandoffMessage, b.CallToAction, b.Address, BotProfile.CoordinatesText(b), b.WhatsAppNumber, b.HandoffReturnHours ?? ChatService.DefaultHandoffReturnHours, b.IconUpdatedAt?.UtcTicks, b.AssetId, b.RememberPastChats, b.MemoryDays);
 }

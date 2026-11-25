@@ -27,6 +27,18 @@ public class Bot
     /// <summary>Horas sin actividad de una persona tras las cuales el bot retoma la conversación. Null = el valor por defecto de la plataforma; 0 = nunca (solo manual).</summary>
     public int? HandoffReturnHours { get; set; }
 
+    /// <summary>
+    /// El bot recuerda lo hablado en conversaciones anteriores con el mismo contacto de un canal (WhatsApp, Messenger, Instagram) para darle continuidad.
+    /// Apagado por defecto: cambia las respuestas del bot y usa los mensajes guardados del contacto.
+    /// </summary>
+    public bool RememberPastChats { get; set; }
+
+    /// <summary>
+    /// Hasta cuántos días atrás recuerda. Null = el plazo de conservación de chats de la agencia, que además es su tope: pasado ese plazo los mensajes
+    /// ya no existen.
+    /// </summary>
+    public int? MemoryDays { get; set; }
+
     /// <summary>Cuándo se cambió el icono; null = no tiene. Sirve de versión para el caché del navegador.</summary>
     public DateTimeOffset? IconUpdatedAt { get; set; }
 
