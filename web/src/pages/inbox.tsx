@@ -13,6 +13,15 @@ import type { ConversationSummary } from '@/lib/types'
 type Filter = 'attention' | 'all'
 type Kind = 'all' | 'human' | 'bot'
 
+/** Fecha corta para la lista, como en un chat: la hora si es de hoy, el día si es de este año y la fecha completa si es más antigua. */
+function whenOf(iso: string) {
+  const d = new Date(iso)
+  const now = new Date()
+  if (d.toDateString() === now.toDateString()) return new Intl.DateTimeFormat('es-CO', { hour: 'numeric', minute: '2-digit' }).format(d)
+  if (d.getFullYear() === now.getFullYear()) return new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'short' }).format(d)
+  return new Intl.DateTimeFormat('es-CO', { dateStyle: 'short' }).format(d)
+}
+
 /** Insignia del canal: color de marca, para distinguirlo de un vistazo sobre el avatar. */
 const BADGE: Record<string, string> = {
   whatsapp: 'bg-emerald-500 text-white',
@@ -79,28 +88,31 @@ export default function InboxPage() {
       </div>
 
       <div
-        className={`grid min-h-[28rem] overflow-hidden rounded-xl border bg-card shadow-sm lg:grid-cols-[auto_1fr] ${
-          open ? 'h-[calc(100dvh-8rem)] lg:h-[calc(100dvh-10rem)]' : 'h-[calc(100dvh-13rem)] lg:h-[calc(100dvh-10rem)]'
+        className={`grid min-h-[28rem] grid-cols-[minmax(0,1fr)] overflow-hidden rounded-xl border bg-card shadow-sm lg:grid-cols-[auto_minmax(0,1fr)] ${
+          open ? 'h-[calc(100dvh-5rem)] sm:h-[calc(100dvh-6rem)] lg:h-[calc(100dvh-10rem)]' : 'h-[calc(100dvh-13rem)] lg:h-[calc(100dvh-10rem)]'
         }`}
       >
-        <div className={`flex min-h-0 flex-col lg:flex-row ${open ? 'max-lg:hidden' : ''}`}>
-        <nav aria-label="Filtros de la bandeja" className="flex shrink-0 gap-1 overflow-x-auto border-b p-2 lg:w-48 lg:flex-col lg:overflow-visible lg:border-b-0 lg:border-r lg:p-3">
-          <RailItem icon={InboxIcon} label="Todas" n={all.length} active={filter === 'all' && !channel} onClick={() => { setFilter('all'); setChannel(null) }} />
-          <RailItem icon={UserRoundIcon} label="Necesitan atención" n={count((c) => c.needs_attention)} active={filter === 'attention' && !channel} onClick={() => { setFilter('attention'); setChannel(null) }} />
+        <div className={`flex min-h-0 min-w-0 flex-col lg:flex-row ${open ? 'max-lg:hidden' : ''}`}>
+        <nav aria-label="Filtros de la bandeja" className="flex shrink-0 flex-col gap-2 border-b p-2 lg:w-52 lg:gap-1 lg:border-b-0 lg:border-r lg:px-2 lg:py-3">
+          <div className="flex gap-1.5 lg:flex-col lg:gap-1">
+            <RailItem icon={InboxIcon} label="Todas" n={all.length} active={filter === 'all' && !channel} onClick={() => { setFilter('all'); setChannel(null) }} />
+            <RailItem icon={UserRoundIcon} label="Necesitan atención" n={count((c) => c.needs_attention)} active={filter === 'attention' && !channel} onClick={() => { setFilter('attention'); setChannel(null) }} />
+          </div>
           <p className="hidden px-2 pt-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground lg:block">Canales</p>
-          {Object.entries(CHANNEL).map(([key, ch]) => {
-            const Icon = ch.icon
-            return (
+          {/* En el teléfono no caben los nombres: cada canal va con su color de marca (el mismo de la insignia en la lista) y su nombre al tocarlo o leerlo. */}
+          <div className="flex gap-1.5 lg:flex-col lg:gap-1" role="group" aria-label="Canales">
+            {Object.entries(CHANNEL).map(([key, ch]) => (
               <RailItem
                 key={key}
-                icon={Icon}
+                icon={ch.icon}
                 label={ch.label}
+                badge={BADGE[key]}
                 n={count((c) => chOf(c) === key)}
                 active={channel === key}
                 onClick={() => { setChannel(channel === key ? null : key); setFilter('all') }}
               />
-            )
-          })}
+            ))}
+          </div>
         </nav>
 
         <aside className="flex min-h-0 min-w-0 flex-1 flex-col lg:w-80 lg:flex-none lg:border-r" aria-label="Lista de conversaciones">
@@ -160,7 +172,7 @@ export default function InboxPage() {
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center justify-between gap-2">
                             <span className="truncate font-medium">{c.contact ?? 'Visitante del chat web'}</span>
-                            <span className="shrink-0 text-[11px] text-muted-foreground">{formatDate(c.last_message_at)}</span>
+                            <span className="shrink-0 text-[11px] text-muted-foreground" title={formatDate(c.last_message_at)}>{whenOf(c.last_message_at)}</span>
                           </span>
                           <span className="mt-0.5 block truncate text-sm text-muted-foreground">{c.first_message ?? '—'}</span>
                           <span className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
@@ -222,17 +234,29 @@ export default function InboxPage() {
   )
 }
 
-function RailItem({ icon: Icon, label, n, active, onClick }: { icon: typeof InboxIcon; label: string; n: number; active: boolean; onClick: () => void }) {
+function RailItem({ icon: Icon, label, n, active, badge, onClick }: { icon: typeof InboxIcon; label: string; n: number; active: boolean; badge?: string; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-current={active ? 'true' : undefined}
-      className={`flex shrink-0 items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition ${active ? 'bg-accent font-medium text-accent-foreground' : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'}`}
+      title={label}
+      className={`flex min-w-0 items-center gap-2 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm transition lg:gap-1.5 lg:rounded-md lg:border-0 lg:px-2 ${badge ? 'max-lg:pl-1.5' : ''} ${
+        active ? 'border-transparent bg-accent font-medium text-accent-foreground' : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+      }`}
     >
-      <Icon className="size-4 shrink-0" aria-hidden />
-      <span className="truncate">{label}</span>
-      <span className="ml-auto pl-2 text-xs tabular-nums">{n}</span>
+      {badge ? (
+        <>
+          <span className={`flex size-6 shrink-0 items-center justify-center rounded-full lg:hidden ${badge}`}>
+            <Icon className="size-3.5" aria-hidden />
+          </span>
+          <Icon className="size-4 shrink-0 max-lg:hidden" aria-hidden />
+        </>
+      ) : (
+        <Icon className="size-4 shrink-0" aria-hidden />
+      )}
+      <span className={`truncate ${badge ? 'max-lg:sr-only' : ''}`}>{label}</span>
+      <span className="ml-auto text-xs tabular-nums">{n}</span>
     </button>
   )
 }

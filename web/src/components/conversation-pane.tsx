@@ -68,6 +68,8 @@ export function ConversationPane({
     onError: notifyError,
   })
 
+  // En el teléfono la indicación del teclado no aplica y ocupa tres renglones: basta con «Escribe tu respuesta».
+  const [wide] = useState(() => typeof window === 'undefined' || !window.matchMedia || window.matchMedia('(min-width: 640px)').matches)
   const scroller = useRef<HTMLDivElement>(null)
   // Como en un chat: al abrir o recibir mensajes se va al último.
   useEffect(() => {
@@ -92,7 +94,8 @@ export function ConversationPane({
         <span className={`flex size-10 shrink-0 items-center justify-center rounded-full ${ch.tone}`} title={ch.label}>
           <Icon className="size-5" aria-hidden />
         </span>
-        <div className="min-w-0 flex-1">
+        {/* Con poco ancho, el nombre conserva su lugar y las acciones bajan a otro renglón. */}
+        <div className="min-w-40 flex-1">
           <h2 className="truncate font-semibold leading-tight">{conversation.contact ?? 'Visitante del chat web'}</h2>
           <p className="truncate text-xs text-muted-foreground">
             {ch.label}
@@ -169,7 +172,7 @@ export function ConversationPane({
               maxLength={2000}
               rows={2}
               className="max-h-40 min-h-12 flex-1"
-              placeholder="Escribe tu respuesta (Enter envía, Mayús+Enter baja de línea)"
+              placeholder={wide ? 'Escribe tu respuesta (Enter envía, Mayús+Enter baja de línea)' : 'Escribe tu respuesta'}
               aria-label="Tu respuesta"
             />
             <Button type="submit" disabled={!text.trim() || reply.isPending} aria-label="Enviar respuesta">
