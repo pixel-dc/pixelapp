@@ -9,10 +9,16 @@
 	}
 }
 
+# /tls/* es solo para Caddy: desde fuera llega por el proxy como si viniera de 127.0.0.1, así que se corta aquí.
+(pixela) {
+	encode zstd gzip
+	respond /tls/* 404
+	reverse_proxy 127.0.0.1:5180
+}
+
 # Panel general (la agencia).
 pixelapp.pixeldc.com {
-	encode zstd gzip
-	reverse_proxy 127.0.0.1:5180
+	import pixela
 }
 
 # El acceso de cada cliente. Requiere un registro DNS comodín: *.pixelapp → IP del servidor.
@@ -20,6 +26,5 @@ pixelapp.pixeldc.com {
 	tls {
 		on_demand
 	}
-	encode zstd gzip
-	reverse_proxy 127.0.0.1:5180
+	import pixela
 }
