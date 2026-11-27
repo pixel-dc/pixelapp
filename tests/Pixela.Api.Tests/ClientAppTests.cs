@@ -127,7 +127,7 @@ public sealed class ClientAppTests(ApiFixture api)
 
         var manifest = await JsonAsync(await site.GetAsync(new Uri("/manifest.webmanifest", UriKind.Relative)));
         Assert.StartsWith("Don Porko", manifest.GetProperty("name").GetString(), StringComparison.Ordinal);
-        Assert.Equal("256x256", manifest.GetProperty("icons")[0].GetProperty("sizes").GetString()); // aún sin icono propio: el de la agencia
+        Assert.Equal("512x512", manifest.GetProperty("icons")[0].GetProperty("sizes").GetString()); // aún sin icono propio: el de la agencia
 
         // La agencia sube el icono: debe ser PNG cuadrado.
         using var agency = await api.LoginAsync(w.Agency);
@@ -147,7 +147,7 @@ public sealed class ClientAppTests(ApiFixture api)
         // El otro cliente sigue con el de la agencia.
         using var other = api.CreateClientFor(w.SlugB);
         manifest = await JsonAsync(await other.GetAsync(new Uri("/manifest.webmanifest", UriKind.Relative)));
-        Assert.Equal("256x256", manifest.GetProperty("icons")[0].GetProperty("sizes").GetString());
+        Assert.Equal("512x512", manifest.GetProperty("icons")[0].GetProperty("sizes").GetString());
     }
 
     [Fact]

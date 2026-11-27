@@ -14,9 +14,9 @@ namespace Pixela.Api.Endpoints;
 /// </summary>
 public static class ClientAppEndpoints
 {
-    public const string DefaultName = "Pixelapp";
+    public const string DefaultName = "PixelApp";
     private const string DefaultColor = "#1e1e2f";
-    private const string DefaultIconFile = "pixela-icon.png";
+    private const string DefaultIconFile = "pixela-app-icon.png";
 
     /// <summary>Reconoce el cliente del subdominio. Un subdominio que no es de un cliente activo no sirve nada (salvo el chat público y los webhooks).</summary>
     public static void UseClientHost(this WebApplication app)
@@ -60,9 +60,9 @@ public static class ClientAppEndpoints
         {
             var site = host.Current;
             var name = site?.Name ?? DefaultName;
-            var version = site?.IconVersion?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "0";
-            // Sin icono propio va el de la agencia (256 px). Android pide que el tamaño declarado sea el real.
-            var size = site?.IconSize is { } own ? $"{own}x{own}" : "256x256";
+            var version = site?.IconVersion?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "agency-2";
+            // Sin icono propio va el de la agencia (el robot, 512 px). Android pide que el tamaño declarado sea el real.
+            var size = site?.IconSize is { } own ? $"{own}x{own}" : "512x512";
             var manifest = new
             {
                 id = "/",

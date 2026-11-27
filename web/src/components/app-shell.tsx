@@ -72,7 +72,7 @@ function AttentionBadge() {
 }
 
 /**
- * Logo de Pixelapp (el robot de Pixel DC). `full` = el logo completo con «PIXEL@» (entrada y primer arranque); si no, solo la cabeza
+ * Logo de PixelApp (el robot de Pixel DC). `full` = el logo completo con «PIXEL@» (entrada y primer arranque); si no, solo la cabeza
  * del robot, que se distingue a tamaño de ícono (menú). Si la imagen no carga, el distintivo «DC» con los colores de Pixel DC.
  */
 export function BrandMark({ className = 'size-9', full = false }: { className?: string; full?: boolean }) {
@@ -83,7 +83,7 @@ export function BrandMark({ className = 'size-9', full = false }: { className?: 
     return <img src={branding.icon_url} alt={full ? branding.name : ''} className={`${className} rounded-2xl object-contain`} onError={() => setFailed(true)} />
   }
   if (!failed) {
-    return <img src={full ? '/pixela-logo.png' : '/pixela-icon.png'} alt={full ? 'Pixelapp' : ''} className={`${className} object-contain`} onError={() => setFailed(true)} />
+    return <img src={full ? '/pixela-logo.png' : '/pixela-icon.png'} alt={full ? 'PixelApp' : ''} className={`${className} object-contain`} onError={() => setFailed(true)} />
   }
   return (
     <span className={`${className} grid place-items-center rounded-lg bg-[#1e1e2f] text-sm font-bold text-primary ring-1 ring-primary/60`} aria-hidden>
@@ -145,8 +145,8 @@ export function AppShell() {
           <div className="flex items-center gap-2.5 px-2 py-1.5">
             <BrandMark />
             <span className="min-w-0 leading-tight">
-              <span className="block truncate font-semibold tracking-tight">{branding.client_id ? branding.name : 'Pixelapp'}</span>
-              <span className="block truncate text-xs text-sidebar-foreground/70">{branding.client_id ? 'Pixelapp' : (user.client_name ?? 'Pixel DC')}</span>
+              <span className="block truncate font-semibold tracking-tight">{branding.client_id ? branding.name : 'PixelApp'}</span>
+              <span className="block truncate text-xs text-sidebar-foreground/70">{branding.client_id ? 'PixelApp' : (user.client_name ?? 'Pixel DC')}</span>
             </span>
           </div>
           {chooseClient && <ClientScopeSelector />}

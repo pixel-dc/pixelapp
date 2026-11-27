@@ -43,7 +43,7 @@ export default function LoginPage() {
           ) : (
             <>
               <BrandMark full className="size-56" />
-              <span className="sr-only">Pixelapp</span>
+              <span className="sr-only">PixelApp</span>
             </>
           )}
         </div>

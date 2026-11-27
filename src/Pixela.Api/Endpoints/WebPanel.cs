@@ -72,6 +72,6 @@ public static class WebPanel
             html = html[..(start + 7)] + safe + html[end..];
         }
 
-        return html.Replace("content=\"Pixelapp\"", $"content=\"{safe}\"", StringComparison.Ordinal);
+        return html.Replace("content=\"PixelApp\"", $"content=\"{safe}\"", StringComparison.Ordinal);
     }
 }

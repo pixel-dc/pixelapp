@@ -12,7 +12,7 @@ export interface Branding {
   app_domain: string | null
 }
 
-const FALLBACK: Branding = { name: 'Pixelapp', client_id: null, slug: null, color: null, icon_url: '/pixela-icon.png', app_domain: null }
+const FALLBACK: Branding = { name: 'PixelApp', client_id: null, slug: null, color: null, icon_url: '/pixela-icon.png', app_domain: null }
 
 /** Se pide una vez: no cambia mientras la página siga abierta. Si falla, se ve como el panel general. */
 export function useBranding(): Branding {

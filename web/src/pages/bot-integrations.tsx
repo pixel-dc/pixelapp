@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ApiError, del, get, post, put } from '@/lib/api'
 import type { ClaudeKey, MetaApp } from '@/lib/types'
 
-/** Llave de Claude y app de Meta del bot. Cada bot tiene las suyas: así se audita el consumo por bot en Anthropic y en Pixelapp. */
+/** Llave de Claude y app de Meta del bot. Cada bot tiene las suyas: así se audita el consumo por bot en Anthropic y en PixelApp. */
 export function IntegrationsPanel({ botId }: { botId: string }) {
   return (
     <div className="grid gap-4 xl:grid-cols-2">

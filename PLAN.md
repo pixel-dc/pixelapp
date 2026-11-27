@@ -147,7 +147,7 @@ Script de una sola vez (`tools/Pixela.Migrator`) que lee la base de FacilCorreo 
 
 - Pantallas traídas de FacilCorreo (bandeja, conocimiento, canales, conexiones, respuestas rápidas, consumo, equipo, cuenta, apariencia) y nuevas: primer arranque (`/configurar`), resumen, clientes y ficha del cliente (assets con sus chatbots, datos, marca del widget, precio y topes), configuración de la agencia, equipo de la agencia y pestaña **Integraciones** del bot (llave de Claude con prueba; app de Meta con URL del webhook, token de verificación y clave secreta).
 - Menú por rol: el operador solo ve la bandeja y su cuenta; el administrador del cliente, chatbots, bandeja y su equipo; la agencia, todo, con el selector «Estás viendo» (cabecera `X-Client-Id` en las rutas de datos, nunca en sesión, cuenta ni configuración de la agencia).
-- Marca: acento por defecto cian `#3AD3F8`, Poppins, colores de Pixel DC en el selector de color. Logo de Pixelapp (robot «DC» + «PIXEL@»): completo en la entrada y el primer arranque (`web/public/pixela-logo.png`), solo la cabeza en el menú y como ícono (`pixela-icon.png`, `favicon.png`, `apple-touch-icon.png`).
+- Marca: acento por defecto cian `#3AD3F8`, Poppins, colores de Pixel DC en el selector de color. Logo de PixelApp (robot «DC» + «PIXEL@»): completo en la entrada y el primer arranque (`web/public/pixela-logo.png`), solo la cabeza en el menú y como ícono (`pixela-icon.png`, `favicon.png`, `apple-touch-icon.png`).
 - Textos legales: falta la razón social y el correo de contacto de Pixel DC (marcados como pendientes en `web/src/pages/legal.tsx`).
 - Revisado en navegador contra API y PostgreSQL reales: primer arranque, entrada, crear cliente con asset, crear bot, Integraciones; escritorio y teléfono, tema oscuro y claro.
 

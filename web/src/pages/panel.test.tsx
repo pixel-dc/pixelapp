@@ -49,8 +49,8 @@ describe('primer arranque', () => {
     })
     renderApp('/login')
 
-    expect(await screen.findByText('Bienvenido a Pixelapp')).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'Pixelapp' })).toHaveAttribute('src', '/pixela-logo.png')
+    expect(await screen.findByText('Bienvenido a PixelApp')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'PixelApp' })).toHaveAttribute('src', '/pixela-logo.png')
     await userEvent.type(screen.getByLabelText('Correo'), 'dueno@pixeldc.test')
     await userEvent.type(screen.getByLabelText('Contraseña'), 'una frase larga de prueba')
     await userEvent.type(screen.getByLabelText('Repite la contraseña'), 'una frase larga de prueba')

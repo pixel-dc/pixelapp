@@ -84,7 +84,7 @@ function SettingsForm({ settings }: { settings: AgencySettings }) {
           </div>
         </TabsContent>
         <TabsContent value="ai" className="grid max-w-2xl gap-4 pt-4">
-          <p className="text-sm text-muted-foreground">Cada chatbot usa su propia llave de Claude (en su pestaña Integraciones). Aquí se fija el modelo por defecto y el precio con el que Pixelapp estima el costo de cada respuesta.</p>
+          <p className="text-sm text-muted-foreground">Cada chatbot usa su propia llave de Claude (en su pestaña Integraciones). Aquí se fija el modelo por defecto y el precio con el que PixelApp estima el costo de cada respuesta.</p>
           <div className="space-y-1.5">
             <Label htmlFor="ag-model">Modelo por defecto</Label>
             <Input id="ag-model" value={form.default_model} onChange={set('default_model')} />

@@ -46,11 +46,11 @@ export default function SetupPage() {
       <div className="w-full max-w-md space-y-6">
         <div className="flex flex-col items-center gap-1 text-xl font-semibold text-white">
           <BrandMark full className="size-56" />
-          <span className="sr-only">Pixelapp</span>
+          <span className="sr-only">PixelApp</span>
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>Bienvenido a Pixelapp</CardTitle>
+            <CardTitle>Bienvenido a PixelApp</CardTitle>
             <CardDescription>Crea la cuenta del dueño de la agencia. Desde ella invitarás al resto del equipo y a tus clientes.</CardDescription>
           </CardHeader>
           <CardContent>

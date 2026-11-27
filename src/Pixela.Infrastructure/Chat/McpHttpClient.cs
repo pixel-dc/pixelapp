@@ -140,7 +140,7 @@ public sealed class McpHttpClient : IMcpClient, IDisposable
             {
                 ["protocolVersion"] = ProtocolVersion,
                 ["capabilities"] = new JsonObject(),
-                ["clientInfo"] = new JsonObject { ["name"] = "Pixelapp", ["version"] = "1.0" },
+                ["clientInfo"] = new JsonObject { ["name"] = "PixelApp", ["version"] = "1.0" },
             }, ct);
             protocol = init?["protocolVersion"]?.GetValue<string>() ?? ProtocolVersion;
             using var _ = await SendAsync(new JsonObject { ["jsonrpc"] = "2.0", ["method"] = "notifications/initialized" }, ct);
