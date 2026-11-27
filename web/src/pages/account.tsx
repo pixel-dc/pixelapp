@@ -6,6 +6,7 @@ import { FieldError, PageHeader, SecretOnce } from '@/components/common'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { NotificationsCard } from '@/components/notifications'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -20,6 +21,7 @@ export default function AccountPage() {
     <>
       <PageHeader title="Mi cuenta" description={`${user.email} · ${ROLE_LABEL[user.role]}`} />
       <PasswordCard />
+      <NotificationsCard />
       <TwoFactorCard />
     </>
   )

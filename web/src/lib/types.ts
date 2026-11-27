@@ -73,6 +73,8 @@ export interface Client {
   assets: number
   bots: number
   conversations_this_month: number
+  /** Versión del icono de su app instalable; null = usa el de la agencia. */
+  app_icon_version?: number | null
 }
 
 export interface Asset {

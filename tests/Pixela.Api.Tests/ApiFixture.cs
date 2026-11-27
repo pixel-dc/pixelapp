@@ -25,9 +25,32 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         Environment.SetEnvironmentVariable("Secrets__MasterKey", Convert.ToBase64String(Enumerable.Range(1, 32).Select(i => (byte)i).ToArray()));
         Environment.SetEnvironmentVariable("Panel__SecureCookies", "false"); // el servidor de pruebas habla http
         Environment.SetEnvironmentVariable("Panel__LoginRateLimitPerMinute", "10000");
+        Environment.SetEnvironmentVariable("ClientApps__Domain", ApiFixture.AppsDomain); // el acceso de cada cliente: {slug}.apps.pixela.test
     }
 
     public const string Password = "una frase larga de prueba 2026";
+
+    public const string AppsDomain = "apps.pixela.test";
+
+    /// <summary>Web Push simulado: registra lo que se enviaría a cada dispositivo (nunca sale a la red).</summary>
+    public FakeWebPush Push { get; } = new();
+
+    /// <summary>Cliente HTTP que entra por el acceso propio de un cliente (<c>{slug}.apps.pixela.test</c>), sin sesión.</summary>
+    public HttpClient CreateClientFor(string slug)
+    {
+        var http = CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri($"http://{slug}.{AppsDomain}") });
+        http.DefaultRequestHeaders.Add("X-Requested-With", "Pixela");
+        return http;
+    }
+
+    /// <summary>Inicia sesión por el acceso de un cliente; falla la prueba si no entra.</summary>
+    public async Task<HttpClient> LoginAtAsync(string slug, string email)
+    {
+        var http = CreateClientFor(slug);
+        var response = await http.PostAsJsonAsync("/panel/auth/login", new { email, password = Password });
+        Assert.True(response.IsSuccessStatusCode, $"login {email} en {slug}: {(int)response.StatusCode} {await response.Content.ReadAsStringAsync()}");
+        return http;
+    }
 
     /// <summary>Crea un usuario con <see cref="Password"/> directamente en la base (sin invitación).</summary>
     public async Task<Guid> CreateUserAsync(string email, Pixela.Domain.Users.UserRole role, Guid? clientId)
@@ -73,6 +96,8 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         {
             services.RemoveAll<IAiGateway>();
             services.AddSingleton<IAiGateway>(Ai);
+            services.RemoveAll<Pixela.Application.Users.IWebPush>();
+            services.AddSingleton<Pixela.Application.Users.IWebPush>(Push);
         });
     }
 
@@ -128,6 +153,30 @@ public sealed class FakeAiGateway : IAiGateway
 
         var text = request.Context.Count > 0 ? "Según el negocio: " + request.Context[0].Text : "Te ayudo.";
         return Task.FromResult(new AiReply(text, 1000, 100, request.Model ?? "?"));
+    }
+}
+
+public sealed class FakeWebPush : Pixela.Application.Users.IWebPush
+{
+    public System.Collections.Concurrent.ConcurrentQueue<(string Endpoint, string Payload)> Sent { get; } = new();
+
+    /// <summary>Direcciones que el servicio da por vencidas (responde 410).</summary>
+    public HashSet<string> Gone { get; } = [];
+
+    public string PublicKey => "BFakeServerKey";
+
+    public Task<Pixela.Application.Users.PushOutcome> SendAsync(Pixela.Application.Users.PushTarget target, string payload, string? topic, CancellationToken ct)
+    {
+        lock (Gone)
+        {
+            if (Gone.Contains(target.Endpoint))
+            {
+                return Task.FromResult(Pixela.Application.Users.PushOutcome.Gone);
+            }
+        }
+
+        Sent.Enqueue((target.Endpoint, payload));
+        return Task.FromResult(Pixela.Application.Users.PushOutcome.Sent);
     }
 }
 

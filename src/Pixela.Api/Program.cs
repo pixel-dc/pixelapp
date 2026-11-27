@@ -58,6 +58,7 @@ if (app.Configuration.GetValue("Database:MigrateOnStartup", true))
 }
 
 app.UseProxyForwarding(builder.Configuration);
+app.UseClientHost();
 app.UseWebPanel();
 app.UseRateLimiter();
 app.UseAuthentication();
@@ -69,6 +70,7 @@ app.MapAgency();
 app.MapBots();
 app.MapChat();
 app.MapMeta();
+app.MapClientApps();
 
 await app.RunAsync();
 

@@ -3,6 +3,7 @@ import { ArrowLeftIcon, PlusIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
+import { ClientAppPanel } from '@/components/client-app-panel'
 import { ColorPicker } from '@/components/color-picker'
 import { ConfirmDialog, EmptyState, FieldError, NativeSelect, PageHeader, notifyError } from '@/components/common'
 import { Badge } from '@/components/ui/badge'
@@ -58,6 +59,7 @@ export default function ClientDetailPage() {
           <TabsTrigger value="assets">Assets y chatbots</TabsTrigger>
           <TabsTrigger value="data">Datos</TabsTrigger>
           <TabsTrigger value="brand">Marca del widget</TabsTrigger>
+          <TabsTrigger value="app">App del cliente</TabsTrigger>
           <TabsTrigger value="billing">Precio y topes</TabsTrigger>
         </TabsList>
         <TabsContent value="assets" className="pt-4">
@@ -68,6 +70,9 @@ export default function ClientDetailPage() {
         </TabsContent>
         <TabsContent value="brand" className="pt-4">
           <BrandForm key={c.id} client={c} />
+        </TabsContent>
+        <TabsContent value="app" className="pt-4">
+          <ClientAppPanel client={c} />
         </TabsContent>
         <TabsContent value="billing" className="pt-4">
           <BillingForm key={c.id} client={c} />

@@ -24,6 +24,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { get, post } from '@/lib/api'
 import { applyAppearance, cacheAppearance, isEditingAppearance, sanitize } from '@/lib/appearance'
 import { useAuth } from '@/lib/auth'
+import { useBranding } from '@/lib/branding'
+import { forgetPushOnLogout } from '@/lib/push'
 import { setClientScope } from '@/lib/client-scope'
 import { useTheme } from '@/lib/theme'
 import { type BotList, ROLE_LABEL } from '@/lib/types'
@@ -75,6 +77,11 @@ function AttentionBadge() {
  */
 export function BrandMark({ className = 'size-9', full = false }: { className?: string; full?: boolean }) {
   const [failed, setFailed] = useState(false)
+  const branding = useBranding()
+  // En el acceso de un cliente se ve su icono (el de su app) en lugar del robot.
+  if (branding.client_id && !failed) {
+    return <img src={branding.icon_url} alt={full ? branding.name : ''} className={`${className} rounded-2xl object-contain`} onError={() => setFailed(true)} />
+  }
   if (!failed) {
     return <img src={full ? '/pixela-logo.png' : '/pixela-icon.png'} alt={full ? 'Pixelapp' : ''} className={`${className} object-contain`} onError={() => setFailed(true)} />
   }
@@ -87,6 +94,9 @@ export function BrandMark({ className = 'size-9', full = false }: { className?: 
 
 export function AppShell() {
   const { user, loading, isAgency, isOperator, canManage } = useAuth()
+  const branding = useBranding()
+  // En el acceso de un cliente todo es de ese cliente: la agencia no elige otro.
+  const chooseClient = isAgency && !branding.client_id
   const client = useQueryClient()
   const { theme, setTheme } = useTheme()
   const location = useLocation()
@@ -114,6 +124,7 @@ export function AppShell() {
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />
 
   const logout = async () => {
+    await forgetPushOnLogout()
     try {
       await post('/panel/auth/logout')
     } catch (e) {
@@ -134,11 +145,11 @@ export function AppShell() {
           <div className="flex items-center gap-2.5 px-2 py-1.5">
             <BrandMark />
             <span className="min-w-0 leading-tight">
-              <span className="block truncate font-semibold tracking-tight">Pixelapp</span>
-              <span className="block truncate text-xs text-sidebar-foreground/70">{user.client_name ?? 'Pixel DC'}</span>
+              <span className="block truncate font-semibold tracking-tight">{branding.client_id ? branding.name : 'Pixelapp'}</span>
+              <span className="block truncate text-xs text-sidebar-foreground/70">{branding.client_id ? 'Pixelapp' : (user.client_name ?? 'Pixel DC')}</span>
             </span>
           </div>
-          {isAgency && <ClientScopeSelector />}
+          {chooseClient && <ClientScopeSelector />}
         </SidebarHeader>
         <SidebarContent>
           <SidebarGroup>
@@ -198,10 +209,10 @@ export function AppShell() {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
-        {isAgency && <ClientScopeBanner />}
+        {chooseClient && <ClientScopeBanner />}
         <header className="flex h-12 items-center gap-2 border-b px-4 md:hidden">
           <SidebarTrigger />
-          <span className="truncate font-semibold tracking-tight">Pixelapp</span>
+          <span className="truncate font-semibold tracking-tight">{branding.name}</span>
           <button type="button" onClick={() => navigate('/apariencia')} className="ml-auto rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Perfil y apariencia">
             <UserAvatar user={user} size="sm" />
           </button>

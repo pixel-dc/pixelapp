@@ -104,6 +104,7 @@ public sealed class AuthService(
     IPasswordHasher hasher,
     ISecretProtector secrets,
     IOptions<PanelOptions> panel,
+    Clients.ClientHost host,
     TimeProvider clock)
 {
     private const int RecoveryCodeCount = 10;
@@ -347,10 +348,14 @@ public sealed class AuthService(
         return ServiceResult<bool>.Ok(true);
     }
 
-    /// <summary>Un usuario de un cliente suspendido no entra (la agencia sí, siempre).</summary>
+    /// <summary>
+    /// Un usuario de un cliente suspendido no entra (la agencia sí, siempre). En el acceso propio de un cliente (su subdominio) solo entran sus
+    /// usuarios y la agencia: el de otro cliente recibe la misma respuesta que una contraseña errónea.
+    /// </summary>
     private async Task<bool> ClientAllowsAsync(User user, CancellationToken ct) =>
         user.ClientId is not { } clientId
-        || await db.Clients.IgnoreQueryFilters().AsNoTracking().AnyAsync(c => c.Id == clientId && c.Status == ClientStatus.Active, ct);
+        || ((host.Current is not { } site || site.Id == clientId)
+            && await db.Clients.IgnoreQueryFilters().AsNoTracking().AnyAsync(c => c.Id == clientId && c.Status == ClientStatus.Active, ct));
 
     private async Task<LoginResult> StartSessionAsync(User user, ClientInfo client, DateTimeOffset now, CancellationToken ct)
     {

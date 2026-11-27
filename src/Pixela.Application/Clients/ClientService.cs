@@ -23,7 +23,7 @@ public sealed record ClientRequest(
 public sealed record ClientView(
     Guid Id, string Name, string Slug, string Status, string? LogoUrl, string? PrimaryColor, IReadOnlyDictionary<string, string> Texts,
     decimal? PricePerConversation, string Currency, int? MonthlyConversationCap, int? MessagesPerConversationCap, DateTimeOffset CreatedAt,
-    int Assets = 0, int Bots = 0, int ConversationsThisMonth = 0);
+    int Assets = 0, int Bots = 0, int ConversationsThisMonth = 0, long? AppIconVersion = null);
 
 public sealed record AssetRequest(Guid? ClientId, string? Name, string? Description);
 
@@ -416,7 +416,7 @@ public sealed partial class ClientService(IAppDbContext db, TimeProvider clock)
 
     private static ClientView ToView(Client c) =>
         new(c.Id, c.Name, c.Slug, c.Status.ToString().ToLowerInvariant(), c.LogoUrl, c.PrimaryColor, c.Texts ?? [],
-            c.PricePerConversation, c.Currency, c.MonthlyConversationCap, c.MessagesPerConversationCap, c.CreatedAt);
+            c.PricePerConversation, c.Currency, c.MonthlyConversationCap, c.MessagesPerConversationCap, c.CreatedAt, AppIconVersion: c.AppIconUpdatedAt?.UtcTicks);
 
     private static AssetView ToView(Asset a) => new(a.Id, a.ClientId, a.Name, a.Description, a.CreatedAt);
 }

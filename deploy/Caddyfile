@@ -1,6 +1,25 @@
 # Caddy solo pone el HTTPS (certificado de Let's Encrypt automático) y pasa todo a la API, que también sirve el panel.
-# Cambia el subdominio por el que apunte (registro A) a este servidor.
-bots.pixeldc.com {
+# Cambia los dominios por los que apunten (registros A) a este servidor.
+
+{
+	# Accesos por cliente ({slug}.pixelapp.pixeldc.com): el certificado de cada subdominio se pide la primera vez que alguien lo abre,
+	# y solo si la API confirma que es de un cliente activo (así nadie hace emitir certificados para nombres inventados).
+	on_demand_tls {
+		ask http://127.0.0.1:5180/tls/allow
+	}
+}
+
+# Panel general (la agencia).
+pixelapp.pixeldc.com {
 	encode zstd gzip
-	reverse_proxy localhost:5180
+	reverse_proxy 127.0.0.1:5180
+}
+
+# El acceso de cada cliente. Requiere un registro DNS comodín: *.pixelapp → IP del servidor.
+*.pixelapp.pixeldc.com {
+	tls {
+		on_demand
+	}
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:5180
 }

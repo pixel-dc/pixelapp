@@ -12,6 +12,7 @@ public interface IAppDbContext
 
     DbSet<AgencySettings> AgencySettings { get; }
     DbSet<Client> Clients { get; }
+    DbSet<ClientAppIcon> ClientAppIcons { get; }
     DbSet<Asset> Assets { get; }
     DbSet<Bot> Bots { get; }
     DbSet<BotSecrets> BotSecrets { get; }
@@ -31,6 +32,7 @@ public interface IAppDbContext
     DbSet<UserSession> UserSessions { get; }
     DbSet<UserInvite> UserInvites { get; }
     DbSet<PasswordResetToken> PasswordResetTokens { get; }
+    DbSet<PushSubscription> PushSubscriptions { get; }
 
     /// <summary>Suma al consumo del bot en el periodo de forma atómica (crea la fila si no existe).</summary>
     Task RecordChatUsageAsync(Guid botId, Guid clientId, int period, int conversations, int messages, long tokensIn, long tokensOut, long costMicros, DateTimeOffset now, CancellationToken ct, ChannelKind? channel = null);

@@ -12,6 +12,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, IClient
 {
     public DbSet<AgencySettings> AgencySettings => Set<AgencySettings>();
     public DbSet<Client> Clients => Set<Client>();
+    public DbSet<ClientAppIcon> ClientAppIcons => Set<ClientAppIcon>();
     public DbSet<Asset> Assets => Set<Asset>();
     public DbSet<Bot> Bots => Set<Bot>();
     public DbSet<BotSecrets> BotSecrets => Set<BotSecrets>();
@@ -31,6 +32,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, IClient
     public DbSet<UserSession> UserSessions => Set<UserSession>();
     public DbSet<UserInvite> UserInvites => Set<UserInvite>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+    public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
 
     // Propiedades del contexto: EF las evalúa en cada consulta (filtro global por cliente).
     private Guid CurrentClientId => scope.ClientId;
@@ -143,6 +145,30 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, IClient
             e.HasIndex(x => x.Slug).IsUnique();
             e.Ignore(x => x.IsActive);
             e.HasQueryFilter(x => AllClients || x.Id == CurrentClientId);
+        });
+
+        // Sin filtro: es la imagen pública del acceso del cliente (la pide el teléfono antes de iniciar sesión).
+        modelBuilder.Entity<ClientAppIcon>(e =>
+        {
+            e.ToTable("client_app_icons");
+            e.HasKey(x => x.ClientId);
+            e.HasOne<Client>().WithOne().HasForeignKey<ClientAppIcon>(x => x.ClientId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Sin filtro: se lee por usuario (el suyo) o desde el envío de avisos, que decide a quién va cada uno.
+        modelBuilder.Entity<PushSubscription>(e =>
+        {
+            e.ToTable("push_subscriptions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Endpoint).HasMaxLength(1000);
+            e.Property(x => x.P256dh).HasMaxLength(200);
+            e.Property(x => x.Auth).HasMaxLength(100);
+            e.Property(x => x.UserAgent).HasMaxLength(300);
+            e.HasIndex(x => x.Endpoint).IsUnique();
+            e.HasIndex(x => x.UserId);
+            e.HasIndex(x => x.ClientId);
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Client>().WithMany().HasForeignKey(x => x.ClientId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Asset>(e =>

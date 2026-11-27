@@ -39,7 +39,22 @@ public class Client
 
     public DateTimeOffset CreatedAt { get; set; }
 
+    /// <summary>Cuándo se subió el icono de su app instalable (sirve de versión de caché); null = usa el de la agencia.</summary>
+    public DateTimeOffset? AppIconUpdatedAt { get; set; }
+
     public bool IsActive => Status == ClientStatus.Active;
+}
+
+/// <summary>
+/// Icono de la app del cliente: lo que se ve en la pantalla de inicio del teléfono y en sus notificaciones al instalar su acceso
+/// (<c>{slug}.dominio</c>). Siempre PNG cuadrado, para que el sistema no lo recorte ni lo rellene de negro.
+/// </summary>
+public class ClientAppIcon
+{
+    public Guid ClientId { get; set; }
+    public required byte[] Content { get; set; }
+    public int Size { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
 }
 
 /// <summary>Agrupa los chatbots de un cliente (una marca, una sede, una línea de negocio).</summary>

@@ -77,6 +77,7 @@ public sealed class ChatService(
     DataConnectionService connections,
     ISecretProtector secrets,
     IOptions<ChatOptions> chatOptions,
+    IConversationAlerts alerts,
     TimeProvider clock)
 {
     public const string Unavailable = "Este chat no está disponible.";
@@ -300,6 +301,7 @@ public sealed class ChatService(
         }
 
         await db.RecordChatUsageAsync(bot.Id, bot.ClientId, UsagePeriod.Of(now), isNew ? 1 : 0, 0, 0, 0, 0, now, ct, contact.Kind);
+        alerts.Publish(ConversationAlertText.Build(conversation, contact.Kind, label, isNew));
         return ServiceResult<string>.Ok(reply);
     }
 
@@ -339,6 +341,7 @@ public sealed class ChatService(
                 CreatedAt = now,
             });
             await db.SaveChangesAsync(ct);
+            alerts.Publish(ConversationAlertText.Build(conversation, channel?.Kind, content, isNew: false));
             return ServiceResult<ChatReply>.Ok(new ChatReply("", Math.Max(0, limits.MessagesPerConversation - conversation.MessageCount), false, false, WithPerson: true));
         }
 
@@ -466,6 +469,12 @@ public sealed class ChatService(
         }
 
         await db.RecordChatUsageAsync(bot.Id, bot.ClientId, UsagePeriod.Of(now), isNew ? 1 : 0, 1, reply.TokensIn, reply.TokensOut, cost, now, ct, channel?.Kind);
+        // Se avisa al equipo cuando empieza una conversación y cuando una necesita a una persona (el bot no supo o pidió el traspaso).
+        if (isNew || conversation.NeedsAttention)
+        {
+            alerts.Publish(ConversationAlertText.Build(conversation, channel?.Kind, content, isNew));
+        }
+
         return ServiceResult<ChatReply>.Ok(new ChatReply(reply.Text, Math.Max(0, limits.MessagesPerConversation - conversation.MessageCount), hits.Count == 0 || (handoff && channel is null), isNew, WithPerson: handoff));
     }
 

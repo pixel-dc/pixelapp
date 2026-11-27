@@ -1,4 +1,6 @@
+using System.Net;
 using Microsoft.Extensions.FileProviders;
+using Pixela.Application.Clients;
 
 namespace Pixela.Api.Endpoints;
 
@@ -9,12 +11,18 @@ namespace Pixela.Api.Endpoints;
 /// </summary>
 public static class WebPanel
 {
-    private static readonly string[] ApiPrefixes = ["/panel", "/chat", "/meta", "/widget", "/health"];
+    private static readonly string[] ApiPrefixes = ["/panel", "/chat", "/meta", "/widget", "/health", "/tls"];
+
+    /// <summary>Carpeta del build del panel; null si no existe (en desarrollo el panel lo sirve Vite).</summary>
+    public static string? Root(WebApplication app)
+    {
+        var root = app.Configuration["Web:Root"] is { Length: > 0 } configured ? configured : Path.Combine(AppContext.BaseDirectory, "wwwroot");
+        return Directory.Exists(root) ? root : null;
+    }
 
     public static void UseWebPanel(this WebApplication app)
     {
-        var root = app.Configuration["Web:Root"] is { Length: > 0 } configured ? configured : Path.Combine(AppContext.BaseDirectory, "wwwroot");
-        if (!Directory.Exists(root))
+        if (Root(app) is not { } root)
         {
             return; // en desarrollo el panel lo sirve Vite
         }
@@ -29,6 +37,7 @@ public static class WebPanel
         });
 
         var index = files.GetFileInfo("index.html");
+        string? html = null;
         app.MapFallback(async context =>
         {
             var path = context.Request.Path;
@@ -40,7 +49,29 @@ public static class WebPanel
 
             context.Response.ContentType = "text/html; charset=utf-8";
             context.Response.Headers.CacheControl = "no-cache";
+            if (context.RequestServices.GetRequiredService<ClientHost>().Current is { } site)
+            {
+                // En el acceso de un cliente, la app se instala con su nombre (iPhone lo toma del título y de apple-mobile-web-app-title).
+                html ??= await File.ReadAllTextAsync(index.PhysicalPath!, context.RequestAborted);
+                await context.Response.WriteAsync(Brand(html, site.Name), context.RequestAborted);
+                return;
+            }
+
             await context.Response.SendFileAsync(index);
         });
+    }
+
+    /// <summary>El index.html con el nombre del cliente como título de la página y de la app instalada.</summary>
+    public static string Brand(string html, string name)
+    {
+        var safe = WebUtility.HtmlEncode(name);
+        var start = html.IndexOf("<title>", StringComparison.Ordinal);
+        var end = html.IndexOf("</title>", StringComparison.Ordinal);
+        if (start >= 0 && end > start)
+        {
+            html = html[..(start + 7)] + safe + html[end..];
+        }
+
+        return html.Replace("content=\"Pixelapp\"", $"content=\"{safe}\"", StringComparison.Ordinal);
     }
 }

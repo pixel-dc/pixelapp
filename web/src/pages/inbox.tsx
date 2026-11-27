@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router'
 import { useState } from 'react'
 import { ConfirmDialog, EmptyState, PageHeader, formatDate, notifyError } from '@/components/common'
 import { CHANNEL, ConversationPane } from '@/components/conversation-pane'
+import { NotificationsBanner } from '@/components/notifications'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { del, get } from '@/lib/api'
@@ -83,8 +84,9 @@ export default function InboxPage() {
   const open = !!selected
   return (
     <>
-      <div className={open ? 'max-lg:hidden' : ''}>
+      <div className={`space-y-4 ${open ? 'max-lg:hidden' : ''}`}>
         <PageHeader title="Bandeja" description="Las conversaciones de todos tus chatbots y canales. Las que esperan a una persona van primero." />
+        <NotificationsBanner />
       </div>
 
       <div

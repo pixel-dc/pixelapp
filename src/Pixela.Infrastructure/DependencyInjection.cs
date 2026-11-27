@@ -11,6 +11,7 @@ using Pixela.Application.Http;
 using Pixela.Infrastructure.Chat;
 using Pixela.Infrastructure.Maintenance;
 using Pixela.Infrastructure.Persistence;
+using Pixela.Infrastructure.Push;
 using Pixela.Infrastructure.Security;
 
 namespace Pixela.Infrastructure;
@@ -39,6 +40,20 @@ public static class DependencyInjection
         services.AddScoped<AgencySettingsReader>();
         services.AddScoped<AgencySettingsService>();
         services.AddScoped<ClientService>();
+
+        // Acceso propio de cada cliente (su subdominio) y su app instalable.
+        services.Configure<ClientAppsOptions>(configuration.GetSection(ClientAppsOptions.Section));
+        services.AddScoped<ClientHost>();
+        services.AddScoped<ClientHostResolver>();
+        services.AddScoped<ClientAppService>();
+
+        // Notificaciones: suscripciones de cada dispositivo y una cola que envía los avisos aparte del chat.
+        services.AddSingleton<IWebPush, WebPushClient>();
+        services.AddScoped<PushService>();
+        services.AddScoped<ConversationAlertDelivery>();
+        services.AddSingleton<ConversationAlertSender>();
+        services.AddSingleton<IConversationAlerts>(sp => sp.GetRequiredService<ConversationAlertSender>());
+        services.AddHostedService(sp => sp.GetRequiredService<ConversationAlertSender>());
 
         // Panel: sesiones, equipos y primer arranque.
         services.Configure<PanelOptions>(configuration.GetSection(PanelOptions.Section));

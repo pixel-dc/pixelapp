@@ -3,6 +3,7 @@ using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
 using Pixela.Application.Abstractions;
+using Pixela.Application.Clients;
 using Pixela.Application.Users;
 using Pixela.Domain.Users;
 
@@ -59,7 +60,8 @@ internal sealed class SessionAuthenticationHandler(
     ILoggerFactory loggerFactory,
     UrlEncoder encoder,
     AuthService auth,
-    ClientScope scope)
+    ClientScope scope,
+    ClientHost host)
     : AuthenticationHandler<AuthenticationSchemeOptions>(options, loggerFactory, encoder)
 {
     private const string ScopeErrorItem = "px:client_scope_error";
@@ -118,6 +120,18 @@ internal sealed class SessionAuthenticationHandler(
             }
 
             requested = parsed;
+        }
+
+        if (host.Current is { } site)
+        {
+            // En el acceso de un cliente todo se ve de ese cliente, también para la agencia (la sesión de otro cliente ya no valida aquí).
+            if (principal.ClientId is { } mine && mine != site.Id)
+            {
+                return false;
+            }
+
+            scope.SetClient(site.Id);
+            return requested is null || requested == site.Id;
         }
 
         if (principal.ClientId is { } own)

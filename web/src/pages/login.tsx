@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ApiError, get, post } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { useBranding } from '@/lib/branding'
 
 const credentials = z.object({
   email: z.email('Ingresa un correo válido.'),
@@ -23,6 +24,7 @@ type LoginResponse = { user?: unknown; two_factor_required?: boolean; challenge?
 
 export default function LoginPage() {
   const { user, refresh } = useAuth()
+  const branding = useBranding()
   const [challenge, setChallenge] = useState<string | null>(null)
   const setup = useQuery({ queryKey: ['setup'], queryFn: () => get<{ pending: boolean }>('/panel/setup'), retry: false })
 
@@ -32,9 +34,18 @@ export default function LoginPage() {
   return (
     <main className="grid min-h-screen place-items-center p-4">
       <div className="w-full max-w-sm space-y-6">
-        <div className="flex flex-col items-center gap-1 text-xl font-semibold">
-          <BrandMark full className="size-56" />
-          <span className="sr-only">Pixelapp</span>
+        <div className="flex flex-col items-center gap-3 text-xl font-semibold">
+          {branding.client_id ? (
+            <>
+              <BrandMark full className="size-28 shadow-sm" />
+              <span>{branding.name}</span>
+            </>
+          ) : (
+            <>
+              <BrandMark full className="size-56" />
+              <span className="sr-only">Pixelapp</span>
+            </>
+          )}
         </div>
         <Card>
           {challenge ? (

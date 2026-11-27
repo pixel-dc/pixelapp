@@ -28,6 +28,6 @@ export default defineConfig({
     restoreMocks: true,
   },
   server: {
-    proxy: { '/panel': api, '/chat': api, '/widget': api, '/widget.js': api, '/meta': api, '/health': api },
+    proxy: { '/panel': api, '/chat': api, '/widget': api, '/widget.js': api, '/meta': api, '/health': api, '/manifest.webmanifest': api, '/app-icon.png': api },
   },
 })
